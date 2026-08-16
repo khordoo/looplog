@@ -8,6 +8,7 @@ import { Workout } from '../features/workout/Workout'
 import { ExerciseDetail, ExerciseLibrary } from '../features/exercises/Exercises'
 import { History, HistoryDetail } from '../features/history/History'
 import { BandsSettings, BackupSettings, ResetSettings, ScheduleSettings, Settings, StorageSettings, SubstitutionSettings } from '../features/settings/Settings'
+import { DeskReset } from '../features/desk-reset/DeskReset'
 
 function Bootstrap() {
   const storage = useStorage(); const [destination, setDestination] = useState<string>();
@@ -16,5 +17,5 @@ function Bootstrap() {
 }
 
 export function AppRoutes() {
-  return <Routes><Route element={<Shell />}><Route path="/" element={<Bootstrap />} /><Route path="/onboarding" element={<Onboarding />} /><Route path="/today" element={<Today />} /><Route path="/workout/:sessionId" element={<Workout />} /><Route path="/exercises" element={<ExerciseLibrary />} /><Route path="/exercises/:exerciseId" element={<ExerciseDetail />} /><Route path="/history" element={<History />} /><Route path="/history/:sessionId" element={<HistoryDetail />} /><Route path="/settings" element={<Settings />} /><Route path="/settings/schedule" element={<ScheduleSettings />} /><Route path="/settings/bands" element={<BandsSettings />} /><Route path="/settings/substitutions" element={<SubstitutionSettings />} /><Route path="/settings/backups" element={<BackupSettings />} /><Route path="/settings/storage" element={<StorageSettings />} /><Route path="/settings/reset" element={<ResetSettings />} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes>
+  return <Routes><Route element={<Shell />}><Route path="/" element={<Bootstrap />} /><Route path="/onboarding" element={<Onboarding />} /><Route path="/today" element={<Today />} /><Route path="/desk-reset" element={<DeskReset />} /><Route path="/workout/:sessionId" element={<Workout />} /><Route path="/exercises" element={<ExerciseLibrary />} /><Route path="/exercises/:exerciseId" element={<ExerciseDetail />} /><Route path="/history" element={<History />} /><Route path="/history/:sessionId" element={<HistoryDetail />} /><Route path="/settings" element={<Settings />} /><Route path="/settings/schedule" element={<ScheduleSettings />} /><Route path="/settings/bands" element={<BandsSettings />} /><Route path="/settings/substitutions" element={<SubstitutionSettings />} /><Route path="/settings/backups" element={<BackupSettings />} /><Route path="/settings/storage" element={<StorageSettings />} /><Route path="/settings/reset" element={<ResetSettings />} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes>
 }

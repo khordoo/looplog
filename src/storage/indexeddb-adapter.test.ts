@@ -83,6 +83,23 @@ describe('IndexedDbStorageAdapter', () => {
     await cleanup(resumed)
   })
 
+  it('atomically cascades a session deletion to its exercise and set logs only', async () => {
+    const adapter = makeAdapter()
+    const removed = await adapter.createSession({ id: 'removed-session', workoutKey: 'A', planVersion: '1', scheduledDate: '2026-08-16' })
+    const retained = await adapter.createSession({ id: 'retained-session', workoutKey: 'B', planVersion: '1', scheduledDate: '2026-08-17' })
+    const removedLog = await adapter.createExerciseLog({ sessionId: removed.id, exerciseId: 'squat', planSlotId: 'A-1', order: 0, targetSnapshot: { sets: 2, repRange: { min: 8, max: 12 }, bandKeys: [], source: 'default' } })
+    const retainedLog = await adapter.createExerciseLog({ sessionId: retained.id, exerciseId: 'row', planSlotId: 'B-1', order: 0, targetSnapshot: { sets: 2, repRange: { min: 8, max: 12 }, bandKeys: [], source: 'default' } })
+    await adapter.createSetLog({ exerciseLogId: removedLog.id, setNumber: 1, reps: 10, bandKeys: [], effort: 'just-right', completedAt: timestamp })
+    await adapter.createSetLog({ exerciseLogId: retainedLog.id, setNumber: 1, reps: 9, bandKeys: [], effort: 'just-right', completedAt: timestamp })
+    await adapter.deleteSession(removed.id)
+    expect(await adapter.getSession(removed.id)).toBeUndefined()
+    expect(await adapter.getExerciseLogs(removed.id)).toEqual([])
+    expect(await adapter.getSetLogs(removedLog.id)).toEqual([])
+    expect(await adapter.getSession(retained.id)).toBeDefined()
+    expect(await adapter.getSetLogs(retainedLog.id)).toHaveLength(1)
+    await cleanup(adapter)
+  })
+
   it('round trips backup data and automatically restores a replacement after injected failure', async () => {
     const dbName = uniqueDbName()
     const source = makeAdapter(dbName)

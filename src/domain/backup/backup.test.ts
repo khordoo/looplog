@@ -5,6 +5,7 @@ import {
   mergeBackupData,
   parseBackup,
   previewBackup,
+  replaceBackupData,
   serializeBackup,
   validateBackupData,
 } from './backup'
@@ -88,5 +89,13 @@ describe('backup envelope', () => {
     const empty: BackupData = { bands: [], substitutions: [], sessions: [], exerciseLogs: [], setLogs: [] }
     expect(mergeBackupData(empty, data).report).toMatchObject({ inserted: 7, updated: 0, skipped: 0 })
     expect(mergeBackupData(data, data).report).toMatchObject({ inserted: 0, updated: 0, skipped: 7 })
+  })
+
+  it('prepares a validated, detached replacement without mutating the source', () => {
+    const replacement = replaceBackupData(data)
+    expect(replacement).toEqual(data)
+    expect(replacement).not.toBe(data)
+    replacement.sessions[0].notes = 'changed only in replacement'
+    expect(data.sessions[0].notes).toBeUndefined()
   })
 })

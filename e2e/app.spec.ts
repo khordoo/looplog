@@ -47,6 +47,16 @@ async function finishWorkoutWithOneSet(page: Page) {
   await expect(page).toHaveURL(/\/history$/)
 }
 
+async function uploadBackupFromMemory(page: Page, backup: Buffer) {
+  await page.getByTestId('backup-file-input').evaluate((input, encoded) => {
+    const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([bytes], 'training-tracker-backup.json', { type: 'application/json' }))
+    ;(input as HTMLInputElement).files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  }, backup.toString('base64'))
+}
+
 test.describe('Training Tracker P0 smoke flows', () => {
   test('starts onboarding and exposes safety and install guidance', async ({ page }) => {
     await page.goto('/')
@@ -85,11 +95,27 @@ test.describe('Training Tracker P0 smoke flows', () => {
     expect(consoleErrors).toEqual([])
   })
 
-  test('offline status is visible and local shell remains usable', async ({ page, context }) => {
+  test('offline startup serves the cached local shell @chromium-only', async ({ page, context }) => {
     await page.goto('/')
+    await page.evaluate(async () => { await navigator.serviceWorker.ready })
+    await page.reload()
+    expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
     await context.setOffline(true)
-    await expect(page.getByTestId('offline-status')).toContainText(/offline/i)
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('main')).toBeVisible()
+    await expect(page).toHaveTitle(/Training Tracker/)
+    expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
+  })
+
+  test('offers the optional desk reset without creating progression history', async ({ page }) => {
+    await completeOnboarding(page)
+    await page.getByRole('link', { name: /five-minute desk reset/i }).click()
+    await expect(page.getByRole('heading', { name: /five-minute desk reset/i })).toBeVisible()
+    await expect(page.getByTestId('desk-reset-timer')).toHaveText('5:00')
+    await page.getByRole('button', { name: /next movement/i }).click()
+    await expect(page.getByTestId('desk-reset-timer')).toHaveText('4:00')
+    await page.getByRole('link', { name: 'History' }).click()
+    await expect(page.getByText(/no completed workouts yet/i)).toBeVisible()
   })
 
   test('production manifest and service worker are present', async ({ page, request }) => {
@@ -166,6 +192,16 @@ test.describe('Training Tracker P0 smoke flows', () => {
     await completeOnboarding(page)
     await page.getByTestId('start-workout').click()
     await page.getByRole('button', { name: /start working sets/i }).click()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const fold = await page.evaluate(() => {
+      const bottom = (selector: string) => Math.round(document.querySelector(selector)?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY)
+      const navTop = Math.round(document.querySelector('.bottom-nav')?.getBoundingClientRect().top ?? 0)
+      return { navTop, current: bottom('[data-testid="active-exercise"]'), previous: bottom('[data-testid="previous-result"]'), bands: bottom('.set-entry-card fieldset'), save: bottom('[data-testid="set-complete"]') }
+    })
+    expect(fold.current).toBeLessThan(fold.navTop)
+    expect(fold.previous).toBeLessThan(fold.navTop)
+    expect(fold.bands).toBeLessThan(fold.navTop)
+    expect(fold.save).toBeLessThan(fold.navTop)
     const reloads: string[] = []
     page.on('framenavigated', (frame) => { if (frame === page.mainFrame()) reloads.push(frame.url()) })
     await page.evaluate(() => window.dispatchEvent(new Event('training-tracker:update-ready')))
@@ -212,7 +248,8 @@ test.describe('Training Tracker P0 smoke flows', () => {
     await page.getByRole('link', { name: /today/i }).click()
     await page.getByTestId('start-workout').click()
     await page.getByRole('button', { name: /start working sets/i }).click()
-    await expect(page.getByText(/proposal:/i)).toBeVisible()
+    await expect(page.getByText(/proposed target:/i)).toBeVisible()
+    await page.getByText(/proposed target:/i).click()
     await expect(page.getByTestId('confirm-recommendation')).toBeVisible()
   })
 
@@ -261,6 +298,7 @@ test.describe('Training Tracker P0 smoke flows', () => {
     await page.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'share', { configurable: true, value: undefined }); Object.defineProperty(Navigator.prototype, 'canShare', { configurable: true, value: undefined }) })
     await completeOnboarding(page)
     await finishWorkoutWithOneSet(page)
+    const historyBefore = (await page.getByTestId('history-list').innerText()).trim()
     await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('link', { name: /backups/i }).click()
     const downloadPromise = page.waitForEvent('download')
@@ -275,8 +313,9 @@ test.describe('Training Tracker P0 smoke flows', () => {
       await page.locator('a[href="/settings/reset"]').click()
       await page.getByTestId('reset-local-data').click()
       await page.getByTestId('reset-confirm').click()
-      await page.goto('/settings/backups')
-      await page.getByTestId('backup-file-input').setInputFiles({ name: 'training-tracker-backup.json', mimeType: 'application/json', buffer: backup })
+      await page.getByRole('link', { name: 'Settings' }).click()
+      await page.getByRole('link', { name: /backups/i }).click()
+      await uploadBackupFromMemory(page, backup)
       await expect(page.getByTestId('backup-preview')).toBeVisible()
       if (mode === 'merge') await page.getByTestId('backup-merge').click()
       else { await page.getByTestId('backup-replace').click(); await page.getByTestId('replace-confirm').click() }
@@ -285,10 +324,39 @@ test.describe('Training Tracker P0 smoke flows', () => {
     await resetAndRestore('merge')
     await page.getByRole('link', { name: 'History' }).click()
     await expect(page.getByTestId(/history-session-/)).toHaveCount(1)
+    expect((await page.getByTestId('history-list').innerText()).trim()).toBe(historyBefore)
     await resetAndRestore('replace')
     await page.getByRole('link', { name: 'History' }).click()
     await expect(page.getByTestId(/history-session-/)).toHaveCount(1)
-    await expect(page.getByText(/Workout A/i)).toBeVisible()
+    expect((await page.getByTestId('history-list').innerText()).trim()).toBe(historyBefore)
+  })
+
+  test('exports, resets, and restores a backup entirely offline @chromium-only', async ({ page, context }) => {
+    await page.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'share', { configurable: true, value: undefined }); Object.defineProperty(Navigator.prototype, 'canShare', { configurable: true, value: undefined }) })
+    await completeOnboarding(page)
+    await finishWorkoutWithOneSet(page)
+    const historyBefore = (await page.getByTestId('history-list').innerText()).trim()
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('link', { name: /backups/i }).click()
+    await context.setOffline(true)
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByTestId('backup-export').click()
+    const download = await downloadPromise
+    const backupPath = await download.path()
+    expect(backupPath).toBeTruthy()
+    const backup = await readFile(backupPath as string)
+    await page.getByRole('link', { name: /settings/i }).first().click()
+    await page.locator('a[href="/settings/reset"]').click()
+    await page.getByTestId('reset-local-data').click()
+    await page.getByTestId('reset-confirm').click()
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('link', { name: /backups/i }).click()
+    await uploadBackupFromMemory(page, backup)
+    await expect(page.getByTestId('backup-preview')).toBeVisible()
+    await page.getByTestId('backup-merge').click()
+    await expect(page.getByText(/merged backup/i)).toBeVisible()
+    await page.getByRole('link', { name: 'History' }).click()
+    expect((await page.getByTestId('history-list').innerText()).trim()).toBe(historyBefore)
   })
 
   test('a complete written workout remains usable offline', async ({ page, context }) => {

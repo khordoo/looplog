@@ -22,7 +22,7 @@ export async function shareJson(filename: string, value: unknown): Promise<'shar
 }
 
 export async function readBackupFile(file: File): Promise<BackupEnvelope> {
-  const text = typeof file.text === 'function' ? await file.text() : await new Promise<string>((resolve, reject) => {
+  const text = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result ?? ''))
     reader.onerror = () => reject(reader.error ?? new Error('Unable to read backup file.'))

@@ -50,6 +50,8 @@ export interface StorageAdapter {
   createSession(input: NewSession): Promise<WorkoutSession>
   getSession(sessionId: UUID): Promise<WorkoutSession | undefined>
   updateSession(session: WorkoutSession): Promise<void>
+  /** Remove a session and its exercise/set logs in one atomic cascade. */
+  deleteSession(sessionId: UUID): Promise<void>
   /** Read/write only the resumable UI state; status and history remain untouched. */
   getSessionState?(sessionId: UUID): Promise<WorkoutSessionState | undefined>
   saveSessionState?(sessionId: UUID, state: WorkoutSessionState): Promise<void>

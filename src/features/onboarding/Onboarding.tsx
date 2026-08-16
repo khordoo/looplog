@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createDefaultBands } from '../../domain/bands'
-import type { Profile, ScheduleMode, Weekday } from '../../domain/types'
+import { profileSchema, type Profile, type ScheduleMode, type Weekday } from '../../domain/types'
 import { validateScheduleSettings } from '../../domain/schedule'
 import { useStorage } from '../../app/providers/AppProvider'
 import { browserTimezone, isValidIanaTimezone } from '../../lib/browser'
@@ -28,7 +28,8 @@ export function Onboarding() {
     const draftSettings = { timezone, daysPerWeek: days, mode, fixedWeekdays: mode === 'fixed' ? [...new Set(fixed)].sort() as Weekday[] : [] }
     if (!validateScheduleSettings(draftSettings).valid) return
     const stamp = nowIso(); const profile: Profile = { id: 'profile', timezone, daysPerWeek: days, mode, fixedWeekdays: mode === 'fixed' ? [...new Set(fixed)].sort() as Weekday[] : [], planVersion: 'v1', onboardingCompleted: completed, safetyAcknowledged: safety, createdAt: existing?.createdAt ?? stamp, updatedAt: stamp }
-    await storage.saveProfile(profile); setExisting(profile)
+    const validated = profileSchema.parse(profile) as Profile
+    await storage.saveProfile(validated); setExisting(validated)
   }, [days, existing?.createdAt, fixed, mode, safety, storage, timezone])
 
   // Keep a safe, incomplete profile so closing Safari or refreshing never loses

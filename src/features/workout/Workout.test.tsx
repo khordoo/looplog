@@ -4,20 +4,20 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AppProvider } from '../../app/providers/AppProvider'
 import { slotsFor, exerciseById } from '../../lib/content'
 import type { StorageAdapter } from '../../storage/adapter'
-import type { ExerciseLog, SetLog, WorkoutSession } from '../../domain/types'
+import type { ExerciseLog, PerformanceRecord, SetLog, WorkoutSession } from '../../domain/types'
 import { targetForSnapshot, Workout } from './Workout'
 
 // Keep this adapter deliberately small but complete enough to prove that the
 // component consumes adapter-neutral state and refuses finalized sessions.
-function makeAdapter(session: WorkoutSession, logs: ExerciseLog[] = []): StorageAdapter {
+function makeAdapter(session: WorkoutSession, logs: ExerciseLog[] = [], recent: PerformanceRecord[] = []): StorageAdapter {
   const emptySets: SetLog[] = []
   return {
     getProfile: vi.fn().mockResolvedValue(undefined), saveProfile: vi.fn(),
     getBands: vi.fn().mockResolvedValue([]), replaceBands: vi.fn(),
     listSubstitutions: vi.fn().mockResolvedValue([]), saveSubstitution: vi.fn(), removeSubstitution: vi.fn(),
-    createSession: vi.fn(), getSession: vi.fn().mockResolvedValue(session), updateSession: vi.fn(), listSessions: vi.fn().mockResolvedValue([]),
+    createSession: vi.fn(), getSession: vi.fn().mockResolvedValue(session), updateSession: vi.fn(), deleteSession: vi.fn(), listSessions: vi.fn().mockResolvedValue([]),
     createExerciseLog: vi.fn(), updateExerciseLog: vi.fn(), getExerciseLogs: vi.fn().mockResolvedValue(logs),
-    createSetLog: vi.fn(), updateSetLog: vi.fn(), getSetLogs: vi.fn().mockResolvedValue(emptySets), listRecentPerformance: vi.fn().mockResolvedValue([]),
+    createSetLog: vi.fn(), updateSetLog: vi.fn(), getSetLogs: vi.fn().mockResolvedValue(emptySets), listRecentPerformance: vi.fn().mockResolvedValue(recent),
     exportData: vi.fn(), importData: vi.fn(), getAppMeta: vi.fn().mockResolvedValue(undefined), saveAppMeta: vi.fn(), resetAllData: vi.fn(),
     getSessionState: vi.fn().mockResolvedValue(session.activeState), saveSessionState: vi.fn(),
   }
@@ -60,8 +60,22 @@ describe('Workout resume boundary', () => {
     expect(await screen.findByTestId('active-exercise')).toHaveTextContent(exerciseById('upper-row-seated-feet')?.name ?? '')
     expect(screen.getByTestId('set-reps')).toHaveValue(11)
     expect(screen.getByTestId('setup-adjustment')).toHaveValue('shortened-grip')
+    expect(screen.getByTestId('effort-select')).toHaveValue('easy')
     await waitFor(() => expect(adapter.saveSessionState).toHaveBeenCalled())
     expect(adapter.saveSessionState).toHaveBeenCalledWith('session-1', expect.objectContaining({ phase: 'working', activeExerciseIndex: 1, draft: expect.objectContaining({ reps: '11', setupAdjustment: 'shortened-grip', effort: 'easy' }) }))
+  })
+
+  it('shows the previous completed result before the set controls', async () => {
+    const previous: PerformanceRecord = {
+      exerciseId: 'upper-row-seated-feet', sessionId: 'older-session', exerciseLogId: 'older-log', completedAt: stamp,
+      target: { sets: 2, repRange: { min: 8, max: 12 }, bandKeys: ['serious-steel-2'], source: 'default' },
+      sets: [{ reps: 10, effort: 'just-right', bandKeys: ['serious-steel-2'] }, { reps: 11, effort: 'just-right', bandKeys: ['serious-steel-2'] }],
+    }
+    const adapter = makeAdapter(activeSession, logsFor(activeSession), [previous])
+    renderWorkout(adapter)
+    await waitFor(() => expect(screen.getByTestId('previous-result')).toHaveTextContent(/10 · 11 · serious-steel-2/i))
+    const targetPosition = screen.getByTestId('previous-result').compareDocumentPosition(screen.getByTestId('set-complete'))
+    expect(targetPosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('refuses to resurrect a completed session at the UI boundary', async () => {

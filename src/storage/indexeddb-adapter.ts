@@ -20,7 +20,7 @@ import type {
 } from '../domain/types'
 import { createDefaultWorkoutSessionState } from '../domain/types'
 import type { ImportReport, StorageAdapter, StorageStatus } from './adapter'
-import { mergeBackupData, validateBackupData } from '../domain/backup/backup'
+import { mergeBackupData, replaceBackupData, validateBackupData } from '../domain/backup/backup'
 
 export interface IndexedDbStorageOptions {
   db?: TrainingTrackerDB
@@ -148,6 +148,16 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
       throw new Error('Completed or skipped sessions cannot be changed or resumed.')
     }
     await this.db.sessions.put(clone(session.status === 'completed' || session.status === 'skipped' ? { ...session, activeState: undefined } : session))
+  }
+
+  async deleteSession(sessionId: UUID): Promise<void> {
+    await this.db.transaction('rw', [this.db.sessions, this.db.exerciseLogs, this.db.setLogs], async () => {
+      const logs = await this.db.exerciseLogs.where('sessionId').equals(sessionId).toArray()
+      const logIds = logs.map((log) => log.id)
+      if (logIds.length) await this.db.setLogs.where('exerciseLogId').anyOf(logIds).delete()
+      await this.db.exerciseLogs.where('sessionId').equals(sessionId).delete()
+      await this.db.sessions.delete(sessionId)
+    })
   }
 
   async getSessionState(sessionId: UUID): Promise<WorkoutSessionState | undefined> {
@@ -294,9 +304,10 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
       return { mode, ...merged.report }
     }
 
+    const replacement = replaceBackupData(incoming)
     const snapshot = current
     try {
-      await this.writeData(incoming, true)
+      await this.writeData(replacement, true)
     } catch (error) {
       try {
         await this.writeData(snapshot, false)
@@ -305,7 +316,7 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
       }
       throw error
     }
-    const report = summarizeImport(incoming)
+    const report = summarizeImport(replacement)
     return { mode, ...report }
   }
 

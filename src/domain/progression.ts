@@ -64,10 +64,30 @@ export function performanceFormBroke(performance: ExercisePerformance): boolean 
   return performance.sets.some((set) => set.effort === 'form-broke')
 }
 
+interface ObservedResistance {
+  bandKeys: string[]
+  setupAdjustment?: ExercisePerformanceSet['setupAdjustment']
+}
+
+function observedResistance(performance: ExercisePerformance): ObservedResistance | undefined {
+  if (!performance.sets.length) return { bandKeys: [...performance.target.bandKeys].sort(), setupAdjustment: performance.target.setupAdjustment }
+  const first = { bandKeys: [...performance.sets[0].bandKeys].sort(), setupAdjustment: performance.sets[0].setupAdjustment }
+  const consistent = performance.sets.every((set) => {
+    const bandKeys = [...set.bandKeys].sort()
+    return set.setupAdjustment === first.setupAdjustment
+      && bandKeys.length === first.bandKeys.length
+      && bandKeys.every((key, index) => key === first.bandKeys[index])
+  })
+  return consistent ? first : undefined
+}
+
 function sameResistance(a: ExercisePerformance, b: ExercisePerformance): boolean {
-  return a.target.setupAdjustment === b.target.setupAdjustment
-    && a.target.bandKeys.length === b.target.bandKeys.length
-    && a.target.bandKeys.every((key, index) => key === b.target.bandKeys[index])
+  const left = observedResistance(a)
+  const right = observedResistance(b)
+  return Boolean(left && right
+    && left.setupAdjustment === right.setupAdjustment
+    && left.bandKeys.length === right.bandKeys.length
+    && left.bandKeys.every((key, index) => key === right.bandKeys[index]))
 }
 
 function maxObservedValue(performance: ExercisePerformance): number {
@@ -99,11 +119,13 @@ function recommendation(
  */
 export function recommendNextTarget(input: ProgressionInput): WorkoutRecommendation {
   const { exercise, previousPerformances } = input
-  const target = targetFor(exercise, input.currentTarget)
+  let target = targetFor(exercise, input.currentTarget)
   const latest = previousPerformances[0]
   if (!latest) {
     return recommendation(exercise, 'maintain', target, 'Start with the default target and confirm a comfortable setup.')
   }
+  const observed = observedResistance(latest)
+  if (observed) target = { ...target, bandKeys: [...observed.bandKeys], setupAdjustment: observed.setupAdjustment }
 
   if (performanceFormBroke(latest)) {
     return recommendation(

@@ -312,3 +312,10 @@ export function mergeBackupData(local: BackupData, incoming: BackupData): Backup
 }
 
 export const mergeBackup = mergeBackupData
+
+/** Pure replacement preparation: validate, canonicalize, and detach imported data before an adapter transaction. */
+export function replaceBackupData(incoming: BackupData): BackupData {
+  return canonicalData(validateBackupData(incoming))
+}
+
+export const replaceBackup = replaceBackupData

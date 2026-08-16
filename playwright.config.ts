@@ -8,5 +8,8 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'on-first-retry' },
   webServer: { command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173', url: 'http://127.0.0.1:4173', reuseExistingServer: !process.env.CI },
-  projects: [{ name: 'iphone', use: { ...devices['iPhone 13'] } }],
+  projects: [
+    { name: 'iphone', grepInvert: /@chromium-only/, use: { ...devices['iPhone 13'] } },
+    { name: 'offline-chromium', grep: /@chromium-only/, use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 } } },
+  ],
 })

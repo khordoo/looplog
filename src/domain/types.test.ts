@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backupEnvelopeSchema, profileSchema, repRangeSchema, scheduleSettingsSchema, targetSnapshotSchema } from './types'
+import { backupEnvelopeSchema, bandSchema, profileSchema, repRangeSchema, scheduleSettingsSchema, targetSnapshotSchema } from './types'
 
 describe('domain schemas', () => {
   it('requires exactly one kind of target measurement', () => {
@@ -19,5 +19,10 @@ describe('domain schemas', () => {
 
   it('rejects future or malformed backup shapes at the runtime boundary', () => {
     expect(backupEnvelopeSchema.safeParse({ schemaVersion: 99 }).success).toBe(false)
+  })
+
+  it('rejects an inverted nominal band range', () => {
+    const stamp = '2026-01-01T00:00:00.000Z'
+    expect(bandSchema.safeParse({ id: 'band', key: 'band', brand: 'Brand', lengthInches: 41, number: 1, displayColor: 'red', nominalMinLb: 50, nominalMaxLb: 10, enabled: true, createdAt: stamp, updatedAt: stamp }).success).toBe(false)
   })
 })

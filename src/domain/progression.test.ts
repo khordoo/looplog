@@ -50,13 +50,28 @@ describe('double progression', () => {
   it('handles missed minimums, bodyweight reduction, and form breakdown', () => {
     expect(recommendNextTarget({ exercise: exercise(), previousPerformances: [performance([6, 8])] }).kind).toBe('easier-setup')
     const bodyweight = exercise({ defaultTarget: { ...target, bandKeys: [] } })
-    expect(recommendNextTarget({ exercise: bodyweight, previousPerformances: [performance([6, 7], 'just-right', { target: bodyweight.defaultTarget })] }).kind).toBe('reduce-reps')
+    expect(recommendNextTarget({ exercise: bodyweight, previousPerformances: [performance([6, 7], 'just-right', { target: bodyweight.defaultTarget, sets: [6, 7].map((reps) => ({ reps, effort: 'just-right', bandKeys: [] })) })] }).kind).toBe('reduce-reps')
     expect(recommendNextTarget({ exercise: exercise(), previousPerformances: [performance([10, 10], 'form-broke')] }).kind).toBe('regression')
   })
 
   it('does not count a top result at a different resistance as consecutive', () => {
     const prior = performance([12, 12])
-    const latest = performance([12, 12], 'just-right', { target: { ...target, bandKeys: ['serious-steel-2'] } })
+    const latest = performance([12, 12], 'just-right', { sets: [12, 12].map((reps) => ({ reps, effort: 'just-right', bandKeys: ['serious-steel-2'] })) })
     expect(recommendNextTarget({ exercise: exercise(), previousPerformances: [latest, prior] }).kind).toBe('maintain')
+  })
+
+  it('carries the actual logged band and setup into the confirmable proposal', () => {
+    const latest = performance([9, 9], 'just-right', { sets: [9, 9].map((reps) => ({ reps, effort: 'just-right', bandKeys: ['serious-steel-2'], setupAdjustment: 'shortened-grip' })) })
+    const result = recommendNextTarget({ exercise: exercise(), previousPerformances: [latest] })
+    expect(result.proposedTarget.bandKeys).toEqual(['serious-steel-2'])
+    expect(result.proposedTarget.setupAdjustment).toBe('shortened-grip')
+  })
+
+  it('does not treat mixed resistance inside one performance as a stable top result', () => {
+    const mixed = performance([12, 12], 'easy', { sets: [
+      { reps: 12, effort: 'easy', bandKeys: ['serious-steel-1'] },
+      { reps: 12, effort: 'easy', bandKeys: ['serious-steel-2'] },
+    ] })
+    expect(recommendNextTarget({ exercise: exercise(), previousPerformances: [mixed, performance([12, 12])] }).kind).toBe('maintain')
   })
 })

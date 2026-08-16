@@ -101,6 +101,14 @@ export interface Exercise extends EntityMeta {
   media?: ExerciseMedia
 }
 
+/** Adapter-neutral option shown when replacing a plan-slot exercise. */
+export interface ExerciseAlternative {
+  exerciseId: string
+  category: MovementCategory
+  targetKind: 'reps' | 'duration'
+  rationale?: string
+}
+
 export interface PlanSlot {
   id: string
   workoutKey: WorkoutKey
@@ -382,6 +390,10 @@ export const bandSchema = entityMetaSchema.extend({
   nominalMaxLb: z.number().positive(),
   enabled: z.boolean(),
   nickname: z.string().optional(),
+}).superRefine((band, ctx) => {
+  if (band.nominalMinLb > band.nominalMaxLb) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['nominalMinLb'], message: 'The nominal minimum cannot exceed the maximum.' })
+  }
 })
 
 export const substitutionSchema = entityMetaSchema.extend({
