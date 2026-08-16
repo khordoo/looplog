@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['favicon.svg', 'icons/*.png', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'icons/*.png', 'apple-touch-icon.png', 'exercises/*.webp'],
       manifest: {
         name: 'Training Tracker',
         short_name: 'Training Tracker',
@@ -34,7 +34,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,ico,png,webp,woff2}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
       },

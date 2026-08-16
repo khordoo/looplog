@@ -58,6 +58,8 @@ describe('Workout resume boundary', () => {
     const adapter = makeAdapter(activeSession, logsFor(activeSession))
     renderWorkout(adapter)
     expect(await screen.findByTestId('active-exercise')).toHaveTextContent(exerciseById('upper-row-seated-feet')?.name ?? '')
+    expect(screen.getByRole('img', { name: /seated band row around feet setup illustration/i })).toHaveAttribute('src', '/exercises/upper-row-seated-feet.webp')
+    expect(screen.getByRole('button', { name: /load seated band row around feet demonstration video/i })).toBeVisible()
     expect(screen.getByTestId('set-reps')).toHaveValue(11)
     expect(screen.getByTestId('setup-adjustment')).toHaveValue('shortened-grip')
     expect(screen.getByTestId('effort-select')).toHaveValue('easy')

@@ -105,7 +105,7 @@ Vercel hosts only static files. Runtime external services are limited to Vercel 
 
 ## Exercise media maintenance
 
-Every exercise has one attributed, click-to-load YouTube demonstration. The canonical source, equipment/anchor fit, and verification date are recorded in [`docs/MEDIA_MAINTENANCE.md`](docs/MEDIA_MAINTENANCE.md). Recheck every source before a public release and at least quarterly. Written guidance remains the primary offline resource.
+Every workout exercise has an original, locally cached setup illustration plus one attributed, click-to-load YouTube demonstration. Artwork provenance and review guidance are in [`docs/EXERCISE_ART.md`](docs/EXERCISE_ART.md). The canonical video source, equipment/anchor fit, and verification date are recorded in [`docs/MEDIA_MAINTENANCE.md`](docs/MEDIA_MAINTENANCE.md). Recheck every source before a public release and at least quarterly. Written guidance remains the primary offline resource.
 
 ## Future Supabase adapter
 

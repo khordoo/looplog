@@ -191,7 +191,13 @@ test.describe('Training Tracker P0 smoke flows', () => {
   test('active workout update notice cannot activate or reload the page', async ({ page }) => {
     await completeOnboarding(page)
     await page.getByTestId('start-workout').click()
+    await expect(page.getByRole('heading', { name: /prepare to move/i })).toBeVisible()
+    await expect(page.getByLabel(/four-minute warm-up/i).locator('article')).toHaveCount(4)
+    await expect(page.getByText('4:00')).toBeVisible()
     await page.getByRole('button', { name: /start working sets/i }).click()
+    await expect(page.getByTestId('movement-preview')).toBeVisible()
+    await expect(page.getByRole('img', { name: /setup illustration/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /load .* demonstration video/i })).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
     const fold = await page.evaluate(() => {
       const bottom = (selector: string) => Math.round(document.querySelector(selector)?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY)
