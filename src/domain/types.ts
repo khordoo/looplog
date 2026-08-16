@@ -7,6 +7,7 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export type WorkoutKey = 'A' | 'B' | 'C'
 export type ScheduleMode = 'flexible' | 'fixed'
 export type SessionStatus = 'planned' | 'in-progress' | 'completed' | 'skipped'
+export type WorkoutPhase = 'warmup' | 'working' | 'cooldown'
 export type EffortRating = z.infer<typeof effortRatingSchema>
 export type MovementCategory = z.infer<typeof movementCategorySchema>
 export type SetupAdjustment = z.infer<typeof setupAdjustmentSchema>
@@ -65,6 +66,8 @@ export interface TargetSnapshot {
   bandKeys: string[]
   setupAdjustment?: SetupAdjustment
   suggestedReps?: number
+  /** A concrete, confirmable setup cue; never silently picks a user's band. */
+  progressionCue?: string
   source: 'default' | 'recommendation' | 'manual'
 }
 
@@ -105,6 +108,8 @@ export interface PlanSlot {
   exerciseId: string
   category: MovementCategory
   pairId?: string
+  /** Runtime-only accessory slot linked to its primary movement pair. */
+  isAccessory?: boolean
   defaultSets: 2
   repRange?: RepRange
   durationSeconds?: RepRange
@@ -134,6 +139,36 @@ export interface WorkoutSession extends EntityMeta {
   completedAt?: ISOInstant
   durationSeconds?: number
   notes?: string
+  /** State needed to resume an interrupted active workout without guessing. */
+  activeState?: WorkoutSessionState
+}
+
+export interface WorkoutDraft {
+  /** Inputs remain strings while editing so a refresh does not lose an in-progress value. */
+  reps?: string
+  durationSeconds?: string
+  bandKeys: string[]
+  setupAdjustment: SetupAdjustment
+  setupNote?: string
+  effort: EffortRating
+}
+
+export interface WorkoutSessionState {
+  phase: WorkoutPhase
+  activeExerciseIndex: number
+  draft: WorkoutDraft
+  restTimerSeconds: number
+  restTimerRunning: boolean
+}
+
+export function createDefaultWorkoutSessionState(): WorkoutSessionState {
+  return {
+    phase: 'warmup',
+    activeExerciseIndex: 0,
+    draft: { bandKeys: [], setupAdjustment: 'standard', effort: 'just-right' },
+    restTimerSeconds: 60,
+    restTimerRunning: false,
+  }
 }
 
 export interface ExerciseLog extends EntityMeta {
@@ -247,6 +282,7 @@ export interface NewSession {
   id?: UUID
   startedAt?: ISOInstant
   notes?: string
+  activeState?: WorkoutSessionState
 }
 
 export interface NewExerciseLog {
@@ -291,6 +327,7 @@ export const targetSnapshotSchema = z.object({
   bandKeys: z.array(z.string().min(1)),
   setupAdjustment: setupAdjustmentSchema.optional(),
   suggestedReps: z.number().int().nonnegative().optional(),
+  progressionCue: z.string().min(1).optional(),
   source: z.enum(['default', 'recommendation', 'manual']),
 }).superRefine((target, ctx) => {
   if (!target.repRange && !target.durationSeconds) {
@@ -362,6 +399,24 @@ export const sessionSchema = entityMetaSchema.extend({
   completedAt: isoInstantSchema.optional(),
   durationSeconds: z.number().nonnegative().optional(),
   notes: z.string().optional(),
+  activeState: z.lazy(() => workoutSessionStateSchema).optional(),
+})
+
+export const workoutDraftSchema = z.object({
+  reps: z.string().optional(),
+  durationSeconds: z.string().optional(),
+  bandKeys: z.array(z.string().min(1)),
+  setupAdjustment: setupAdjustmentSchema,
+  setupNote: z.string().optional(),
+  effort: effortRatingSchema,
+})
+
+export const workoutSessionStateSchema = z.object({
+  phase: z.enum(['warmup', 'working', 'cooldown']),
+  activeExerciseIndex: z.number().int().nonnegative(),
+  draft: workoutDraftSchema,
+  restTimerSeconds: z.number().int().nonnegative(),
+  restTimerRunning: z.boolean(),
 })
 
 export const exerciseLogSchema = entityMetaSchema.extend({
@@ -389,6 +444,9 @@ export const setLogSchema = entityMetaSchema.extend({
   }
   if (set.reps !== undefined && set.durationSeconds !== undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A set cannot use reps and duration together.' })
+  }
+  if (set.setupAdjustment === 'other' && !set.setupNote?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['setupNote'], message: 'Describe an other setup.' })
   }
 })
 

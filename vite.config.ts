@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['favicon.svg', 'icons/*.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Training Tracker',

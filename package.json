@@ -10,14 +10,13 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:unit": "vitest run --passWithNoTests src/domain",
-    "test:component": "vitest run --passWithNoTests src/components src/features",
-    "test:a11y": "vitest run --passWithNoTests --testNamePattern='a11y|accessibility'",
+    "test:unit": "vitest run src/domain src/storage src/content",
+    "test:component": "vitest run src/app src/components src/features",
+    "test:a11y": "playwright test --grep @a11y",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.23",
     "dexie": "^4.0.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

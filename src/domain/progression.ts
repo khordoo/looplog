@@ -154,8 +154,15 @@ export function recommendNextTarget(input: ProgressionInput): WorkoutRecommendat
     return recommendation(
       exercise,
       'harder-setup',
-      { ...target, suggestedReps: rangeFor(target).min },
-      'Two consecutive clean performances reached the top of the range; confirm a harder band or setup.',
+      {
+        ...target,
+        progressionCue: target.bandKeys.length > 0
+          ? 'Use the next heavier enabled band or a shorter grip; keep the same rep range.'
+          : 'Use a harder defined variation or add controlled resistance; keep the same rep range.',
+      },
+      target.bandKeys.length > 0
+        ? 'Two consecutive clean performances reached the top of the range; confirm the next heavier enabled band or a shorter grip. The app will not select a band for you.'
+        : 'Two consecutive clean performances reached the top of the range; confirm a harder defined variation or controlled resistance. The app will not select a band for you.',
     )
   }
 

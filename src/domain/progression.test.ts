@@ -37,6 +37,9 @@ describe('double progression', () => {
     const top = performance([12, 12, 12], 'easy', { target: threeSetTarget })
     const result = recommendNextTarget({ exercise: threeSetExercise, previousPerformances: [top, top] })
     expect(result.kind).toBe('harder-setup')
+    expect(result.proposedTarget.progressionCue).toMatch(/heavier enabled band|harder defined variation/i)
+    expect(result.proposedTarget.suggestedReps).toBeUndefined()
+    expect(result.requiresConfirmation).toBe(true)
   })
 
   it('maintains after one top-range performance and does not advance on max effort', () => {

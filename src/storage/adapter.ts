@@ -13,6 +13,7 @@ import type {
   Substitution,
   UUID,
   WorkoutSession,
+  WorkoutSessionState,
 } from '../domain/types'
 
 export interface ImportReport {
@@ -49,9 +50,13 @@ export interface StorageAdapter {
   createSession(input: NewSession): Promise<WorkoutSession>
   getSession(sessionId: UUID): Promise<WorkoutSession | undefined>
   updateSession(session: WorkoutSession): Promise<void>
+  /** Read/write only the resumable UI state; status and history remain untouched. */
+  getSessionState?(sessionId: UUID): Promise<WorkoutSessionState | undefined>
+  saveSessionState?(sessionId: UUID, state: WorkoutSessionState): Promise<void>
   listSessions(query?: SessionQuery): Promise<WorkoutSession[]>
 
   createExerciseLog(input: NewExerciseLog): Promise<ExerciseLog>
+  updateExerciseLog?(log: ExerciseLog): Promise<void>
   getExerciseLogs(sessionId: UUID): Promise<ExerciseLog[]>
 
   createSetLog(input: NewSetLog): Promise<SetLog>
@@ -67,4 +72,3 @@ export interface StorageAdapter {
   getStorageStatus?(): Promise<StorageStatus>
   resetAllData(): Promise<void>
 }
-
