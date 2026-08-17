@@ -1,10 +1,9 @@
 import { backupDataSchema, backupEnvelopeSchema } from '../types'
 import type { BackupData, BackupEnvelope, EntityMeta } from '../types'
 
-// The envelope remains schema 1: activeState is an optional additive field,
-// so old exports remain readable and the strict validator still rejects all
-// unknown fields.
-export const BACKUP_SCHEMA_VERSION = 1
+// Schema 2 adds editable plan configurations and local custom exercises. The
+// validator deliberately continues to accept schema-1 envelopes.
+export const BACKUP_SCHEMA_VERSION = 2
 
 export interface BackupBuildOptions {
   appVersion: string
@@ -19,6 +18,8 @@ export interface BackupPreview {
   dateRange?: { from: string; to: string }
   bands: string[]
   substitutionCount: number
+  planConfigurationCount: number
+  customExerciseCount: number
 }
 
 export interface BackupMergeReport {
@@ -57,7 +58,7 @@ function canonicalValue(value: unknown): unknown {
 }
 
 function canonicalData(data: BackupData): BackupData {
-  return {
+  const canonical: BackupData = {
     profile: data.profile ? clone(data.profile) : undefined,
     bands: sortBy(data.bands, (item) => item.key).map(clone),
     substitutions: sortBy(data.substitutions, (item) => item.planSlotId).map(clone),
@@ -66,6 +67,9 @@ function canonicalData(data: BackupData): BackupData {
     setLogs: sortBy(data.setLogs, (item) => item.id).map(clone),
     appMeta: data.appMeta ? clone(data.appMeta) : undefined,
   }
+  if (data.planConfigurations !== undefined) canonical.planConfigurations = sortBy(data.planConfigurations, (item) => item.id).map(clone)
+  if (data.customExercises !== undefined) canonical.customExercises = sortBy(data.customExercises, (item) => item.id).map(clone)
+  return canonical
 }
 
 function payloadForChecksum(envelope: Omit<BackupEnvelope, 'checksum'>): string {
@@ -89,23 +93,27 @@ function assertExactKeys(value: unknown, expected: string[], path: string): void
 }
 
 function assertStrictRawShape(raw: Record<string, unknown>): void {
-  assertExactKeys(raw, ['schemaVersion', 'appVersion', 'exportedAt', 'checksum', 'profile', 'bands', 'substitutions', 'sessions', 'exerciseLogs', 'setLogs', 'appMeta'], 'backup')
+  assertExactKeys(raw, ['schemaVersion', 'appVersion', 'exportedAt', 'checksum', 'profile', 'bands', 'substitutions', 'sessions', 'exerciseLogs', 'setLogs', 'planConfigurations', 'customExercises', 'appMeta'], 'backup')
   assertExactKeys(raw.checksum, ['algorithm', 'value'], 'checksum')
   const expected: Record<string, string[]> = {
     profile: ['id', 'createdAt', 'updatedAt', 'timezone', 'daysPerWeek', 'mode', 'fixedWeekdays', 'planVersion', 'onboardingCompleted', 'safetyAcknowledged'],
     band: ['id', 'createdAt', 'updatedAt', 'key', 'brand', 'lengthInches', 'number', 'displayColor', 'nominalMinLb', 'nominalMaxLb', 'enabled', 'nickname'],
     substitution: ['id', 'createdAt', 'updatedAt', 'planSlotId', 'originalExerciseId', 'selectedExerciseId'],
     session: ['id', 'createdAt', 'updatedAt', 'workoutKey', 'planVersion', 'scheduledDate', 'status', 'startedAt', 'completedAt', 'durationSeconds', 'notes', 'activeState'],
-    exerciseLog: ['id', 'createdAt', 'updatedAt', 'sessionId', 'exerciseId', 'planSlotId', 'order', 'targetSnapshot', 'note'],
+    exerciseLog: ['id', 'createdAt', 'updatedAt', 'sessionId', 'exerciseId', 'planSlotId', 'order', 'targetSnapshot', 'exerciseNameSnapshot', 'note'],
     setLog: ['id', 'createdAt', 'updatedAt', 'exerciseLogId', 'setNumber', 'reps', 'durationSeconds', 'bandKeys', 'setupAdjustment', 'setupNote', 'effort', 'completedAt'],
     appMeta: ['id', 'createdAt', 'updatedAt', 'databaseVersion', 'lastSuccessfulExportAt', 'installState', 'dismissedNotices', 'updateReady'],
-    targetSnapshot: ['sets', 'repRange', 'durationSeconds', 'bandKeys', 'setupAdjustment', 'suggestedReps', 'progressionCue', 'source'],
+    targetSnapshot: ['sets', 'repRange', 'durationSeconds', 'bandKeys', 'setupAdjustment', 'suggestedReps', 'progressionCue', 'restSeconds', 'source'],
     range: ['min', 'max'],
+    planConfiguration: ['id', 'createdAt', 'updatedAt', 'workoutKey', 'revision', 'sourceVersion', 'slots', 'warmupMinutes', 'cooldownMinutes'],
+    planSlot: ['id', 'workoutKey', 'order', 'exerciseId', 'category', 'pairId', 'isAccessory', 'defaultSets', 'restSeconds', 'repRange', 'durationSeconds', 'startingResistance', 'compatibleSubstitutionCategories'],
+    customExercise: ['id', 'createdAt', 'updatedAt', 'name', 'category', 'targetKind', 'targetRange', 'sets', 'setup', 'steps', 'formCues', 'photoDataUrl', 'youtube', 'archived'],
+    youtube: ['videoId', 'sourceUrl', 'host'],
   }
   if (raw.profile) assertExactKeys(raw.profile, expected.profile, 'profile')
-  for (const [name, values] of [['bands', raw.bands], ['substitutions', raw.substitutions], ['sessions', raw.sessions], ['exerciseLogs', raw.exerciseLogs], ['setLogs', raw.setLogs]] as const) {
+  for (const [name, values] of [['bands', raw.bands], ['substitutions', raw.substitutions], ['sessions', raw.sessions], ['exerciseLogs', raw.exerciseLogs], ['setLogs', raw.setLogs], ['planConfigurations', raw.planConfigurations], ['customExercises', raw.customExercises]] as const) {
     if (!Array.isArray(values)) continue
-    const key = name === 'bands' ? 'band' : name === 'substitutions' ? 'substitution' : name === 'sessions' ? 'session' : name === 'exerciseLogs' ? 'exerciseLog' : 'setLog'
+    const key = name === 'bands' ? 'band' : name === 'substitutions' ? 'substitution' : name === 'sessions' ? 'session' : name === 'exerciseLogs' ? 'exerciseLog' : name === 'setLogs' ? 'setLog' : name === 'planConfigurations' ? 'planConfiguration' : 'customExercise'
     values.forEach((item, index) => {
       assertExactKeys(item, expected[key], `${name}[${index}]`)
       if (key === 'exerciseLog') assertExactKeys((item as Record<string, unknown>).targetSnapshot, expected.targetSnapshot, `${name}[${index}].targetSnapshot`)
@@ -120,6 +128,20 @@ function assertStrictRawShape(raw: Record<string, unknown>): void {
           assertExactKeys(state, ['phase', 'activeExerciseIndex', 'draft', 'restTimerSeconds', 'restTimerRunning'], `${name}[${index}].activeState`)
           assertExactKeys(state.draft, ['reps', 'durationSeconds', 'bandKeys', 'setupAdjustment', 'setupNote', 'effort'], `${name}[${index}].activeState.draft`)
         }
+      }
+      if (key === 'planConfiguration') {
+        const configuration = item as Record<string, unknown>
+        if (Array.isArray(configuration.slots)) configuration.slots.forEach((slot, slotIndex) => {
+          assertExactKeys(slot, expected.planSlot, `${name}[${index}].slots[${slotIndex}]`)
+          const targetSlot = slot as Record<string, unknown>
+          if (targetSlot.repRange) assertExactKeys(targetSlot.repRange, expected.range, `${name}[${index}].slots[${slotIndex}].repRange`)
+          if (targetSlot.durationSeconds) assertExactKeys(targetSlot.durationSeconds, expected.range, `${name}[${index}].slots[${slotIndex}].durationSeconds`)
+        })
+      }
+      if (key === 'customExercise') {
+        const custom = item as Record<string, unknown>
+        if (custom.targetRange) assertExactKeys(custom.targetRange, expected.range, `${name}[${index}].targetRange`)
+        if (custom.youtube) assertExactKeys(custom.youtube, expected.youtube, `${name}[${index}].youtube`)
       }
     })
   }
@@ -163,15 +185,24 @@ function assertReferences(data: BackupData, options: BackupReferenceOptions = {}
   assertUnique(data.sessions, 'session')
   assertUnique(data.exerciseLogs, 'exercise log')
   assertUnique(data.setLogs, 'set log')
+  assertUnique(data.planConfigurations ?? [], 'plan configuration')
+  assertUnique(data.customExercises ?? [], 'custom exercise')
+  assertUniqueLogicalKey(data.planConfigurations ?? [], (item) => item.id, 'plan configuration')
+  assertUniqueLogicalKey(data.customExercises ?? [], (item) => item.id, 'custom exercise')
   const sessions = new Set(data.sessions.map((item) => item.id))
   const exerciseLogs = new Set(data.exerciseLogs.map((item) => item.id))
   const bandKeys = new Set(data.bands.map((item) => item.key))
   const knownExerciseIds = asSet(options.knownExerciseIds)
   const knownPlanSlotIds = asSet(options.knownPlanSlotIds)
+  const customExerciseIds = new Set((data.customExercises ?? []).map((item) => item.id))
+  // User-added slots use UUIDs and are defined by the configuration in the
+  // same backup. They must be accepted even when a preview caller only knows
+  // the immutable A/B/C catalog.
+  const configuredSlotIds = new Set((data.planConfigurations ?? []).flatMap((configuration) => configuration.slots.map((slot) => slot.id)))
   for (const log of data.exerciseLogs) if (!sessions.has(log.sessionId)) throw new Error(`Exercise log ${log.id} references missing session ${log.sessionId}.`)
   for (const log of data.exerciseLogs) {
-    if (knownExerciseIds && !knownExerciseIds.has(log.exerciseId)) throw new Error(`Exercise log ${log.id} references unknown exercise ${log.exerciseId}.`)
-    if (knownPlanSlotIds && !knownPlanSlot(knownPlanSlotIds, log.planSlotId)) throw new Error(`Exercise log ${log.id} references unknown plan slot ${log.planSlotId}.`)
+    if (knownExerciseIds && !knownExerciseIds.has(log.exerciseId) && !customExerciseIds.has(log.exerciseId)) throw new Error(`Exercise log ${log.id} references unknown exercise ${log.exerciseId}.`)
+    if (knownPlanSlotIds && !knownPlanSlot(knownPlanSlotIds, log.planSlotId) && !configuredSlotIds.has(log.planSlotId)) throw new Error(`Exercise log ${log.id} references unknown plan slot ${log.planSlotId}.`)
     for (const bandKey of log.targetSnapshot.bandKeys) if (!bandKeys.has(bandKey)) throw new Error(`Exercise log ${log.id} references missing band ${bandKey}.`)
   }
   for (const session of data.sessions) {
@@ -183,10 +214,15 @@ function assertReferences(data: BackupData, options: BackupReferenceOptions = {}
   }
   for (const substitution of data.substitutions) {
     if (substitution.planSlotId.endsWith('-accessory')) throw new Error(`Substitution ${substitution.id} cannot target an accessory slot.`)
-    if (knownExerciseIds && (!knownExerciseIds.has(substitution.originalExerciseId) || !knownExerciseIds.has(substitution.selectedExerciseId))) {
+    if (knownExerciseIds && (![substitution.originalExerciseId, substitution.selectedExerciseId].every((id) => knownExerciseIds.has(id) || customExerciseIds.has(id)))) {
       throw new Error(`Substitution ${substitution.id} references unknown exercise content.`)
     }
     if (knownPlanSlotIds && !knownPlanSlot(knownPlanSlotIds, substitution.planSlotId)) throw new Error(`Substitution ${substitution.id} references unknown plan slot ${substitution.planSlotId}.`)
+  }
+  for (const configuration of data.planConfigurations ?? []) {
+    for (const slot of configuration.slots) {
+      if (knownExerciseIds && !knownExerciseIds.has(slot.exerciseId) && !customExerciseIds.has(slot.exerciseId)) throw new Error(`Plan configuration ${configuration.id} references unknown exercise ${slot.exerciseId}.`)
+    }
   }
 }
 
@@ -204,6 +240,16 @@ export function validateBackupEnvelope(input: unknown, options: BackupReferenceO
 
 export function validateBackupData(input: unknown, options: BackupReferenceOptions = {}): BackupData {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Backup data must be an object.')
+  // Reuse the envelope's recursive exact-key audit with synthetic metadata so
+  // direct adapter imports are held to the same strict contract as files.
+  const raw = input as Record<string, unknown>
+  assertStrictRawShape({
+    ...raw,
+    schemaVersion: 1,
+    appVersion: 'direct-data',
+    exportedAt: new Date(0).toISOString(),
+    checksum: { algorithm: 'SHA-256', value: '0'.repeat(64) },
+  })
   const parsed = backupDataSchema.safeParse(input)
   if (!parsed.success) throw new Error(`Backup data validation failed: ${parsed.error.issues.map((issue) => issue.message).join('; ')}`)
   const data = parsed.data as BackupData
@@ -214,11 +260,14 @@ export function validateBackupData(input: unknown, options: BackupReferenceOptio
 export async function createBackupEnvelope(data: BackupData, options: BackupBuildOptions): Promise<BackupEnvelope> {
   const validated = validateBackupData(data)
   const exportedAt = options.exportedAt ?? new Date().toISOString()
+  const canonical = canonicalData(validated)
   const payload: Omit<BackupEnvelope, 'checksum'> = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     appVersion: options.appVersion,
     exportedAt,
-    ...canonicalData(validated),
+    ...canonical,
+    planConfigurations: canonical.planConfigurations ?? [],
+    customExercises: canonical.customExercises ?? [],
   }
   const checksum = await sha256Hex(payloadForChecksum(payload))
   return { ...clone(payload), checksum: { algorithm: 'SHA-256', value: checksum } }
@@ -255,6 +304,8 @@ export async function previewBackup(input: string | unknown): Promise<BackupPrev
     dateRange: dates.length ? { from: dates[0], to: dates[dates.length - 1] } : undefined,
     bands: envelope.bands.map((band) => band.nickname ? `${band.key} (${band.nickname})` : band.key),
     substitutionCount: envelope.substitutions.length,
+    planConfigurationCount: envelope.planConfigurations?.length ?? 0,
+    customExerciseCount: envelope.customExercises?.length ?? 0,
   }
 }
 
@@ -299,6 +350,12 @@ export function mergeBackupData(local: BackupData, incoming: BackupData): Backup
     exerciseLogs: mergeRecords(local.exerciseLogs, incoming.exerciseLogs, (item) => item.id, stats),
     setLogs: mergeRecords(local.setLogs, incoming.setLogs, (item) => item.id, stats),
     appMeta: appMeta ? clone(appMeta) : undefined,
+  }
+  if (local.planConfigurations !== undefined || incoming.planConfigurations !== undefined) {
+    data.planConfigurations = mergeRecords(local.planConfigurations ?? [], incoming.planConfigurations ?? [], (item) => item.id, stats)
+  }
+  if (local.customExercises !== undefined || incoming.customExercises !== undefined) {
+    data.customExercises = mergeRecords(local.customExercises ?? [], incoming.customExercises ?? [], (item) => item.id, stats)
   }
   const dates = incoming.sessions.map((session) => session.scheduledDate).sort()
   return {

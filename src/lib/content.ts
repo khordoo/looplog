@@ -1,14 +1,15 @@
 import { exercises as sourceExercises } from '../content/exercises'
 import { planTemplates, workingSlots } from '../content/plans'
 import type { Exercise as DomainExercise, PlanSlot, PlanTemplate as DomainPlan, TargetSnapshot, WorkoutKey } from '../domain/types'
+import { DEFAULT_REST_SECONDS } from '../domain/types'
 import type { Exercise as SourceExercise, Target } from '../content/types'
 
 const STATIC_META = '2000-01-01T00:00:00.000Z'
 
 function targetSnapshot(target: Target): TargetSnapshot {
   return target.kind === 'seconds'
-    ? { sets: 2, durationSeconds: { min: target.min, max: target.max }, bandKeys: [], source: 'default' }
-    : { sets: 2, repRange: { min: target.min, max: target.max }, bandKeys: [], source: 'default' }
+    ? { sets: 2, durationSeconds: { min: target.min, max: target.max }, bandKeys: [], restSeconds: DEFAULT_REST_SECONDS, source: 'default' }
+    : { sets: 2, repRange: { min: target.min, max: target.max }, bandKeys: [], restSeconds: DEFAULT_REST_SECONDS, source: 'default' }
 }
 
 function domainExercise(source: SourceExercise): DomainExercise {
@@ -59,7 +60,8 @@ function toSlot(workoutKey: WorkoutKey, slot: ReturnType<typeof workingSlots>[nu
     category: categoryFor(slot.exerciseId),
     ...(accessory ? { pairId: slot.id } : {}),
     isAccessory: accessory,
-    defaultSets: 2 as const,
+    defaultSets: 2,
+    restSeconds: DEFAULT_REST_SECONDS,
     startingResistance: 'band' as const,
     compatibleSubstitutionCategories: exerciseById(slot.exerciseId)?.compatibleSubstitutionCategories,
   }

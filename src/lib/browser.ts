@@ -1,6 +1,6 @@
 /** Storage schema currently consumed by the app metadata record. Keep this
  * adapter-facing constant in UI code so screens do not import Dexie. */
-export const CURRENT_DATABASE_VERSION = 3
+export const CURRENT_DATABASE_VERSION = 5
 
 export function browserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'

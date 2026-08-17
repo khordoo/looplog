@@ -2,12 +2,17 @@ import type {
   AppMeta,
   BackupData,
   Band,
+  CustomExercise,
   ExerciseLog,
+  Exercise,
   NewExerciseLog,
+  NewCustomExercise,
   NewSession,
   NewSetLog,
   PerformanceRecord,
   Profile,
+  PlanConfiguration,
+  ResolvedPlan,
   SessionQuery,
   SetLog,
   Substitution,
@@ -46,6 +51,28 @@ export interface StorageAdapter {
   listSubstitutions(): Promise<Substitution[]>
   saveSubstitution(substitution: Substitution): Promise<void>
   removeSubstitution(planSlotId: string): Promise<void>
+
+  /** Resolve the editable plan or immutable built-in defaults plus legacy substitutions. */
+  resolvePlan?(workoutKey: 'A' | 'B' | 'C'): Promise<ResolvedPlan>
+  listPlanConfigurations?(): Promise<PlanConfiguration[]>
+  getPlanConfiguration?(workoutKey: 'A' | 'B' | 'C'): Promise<PlanConfiguration | undefined>
+  savePlanConfiguration?(configuration: PlanConfiguration): Promise<void>
+  /** Materialize legacy substitutions into a first-edit configuration. */
+  materializePlanConfiguration?(workoutKey: 'A' | 'B' | 'C'): Promise<PlanConfiguration>
+  /** Remove the user copy; the next resolve reads immutable defaults. */
+  restorePlanDefaults?(workoutKey: 'A' | 'B' | 'C'): Promise<void>
+
+  listCustomExercises?(options?: { includeArchived?: boolean }): Promise<CustomExercise[]>
+  getCustomExercise?(id: UUID, options?: { includeArchived?: boolean }): Promise<CustomExercise | undefined>
+  saveCustomExercise?(exercise: CustomExercise | NewCustomExercise): Promise<CustomExercise>
+  archiveCustomExercise?(id: UUID): Promise<void>
+  deleteCustomExercise?(id: UUID): Promise<void>
+  /** Built-in and local records in one feature-facing read API. */
+  listExercises?(options?: { includeArchived?: boolean }): Promise<Exercise[]>
+  getExercise?(id: string, options?: { includeArchived?: boolean }): Promise<Exercise | undefined>
+
+  /** Resolve and atomically snapshot exact ordered exercise logs at session start. */
+  startSession?(input: NewSession): Promise<WorkoutSession>
 
   createSession(input: NewSession): Promise<WorkoutSession>
   getSession(sessionId: UUID): Promise<WorkoutSession | undefined>

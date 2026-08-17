@@ -1,6 +1,6 @@
 # Exercise preview artwork
 
-The 17 workout illustrations in `public/exercises/` were generated as original project assets on 2026-08-16 with Codex's built-in image-generation tool, then reviewed against the corresponding written setup and verified demonstration video.
+The 22 built-in exercise illustrations in `public/exercises/` were generated as original project assets with Codex's built-in image-generation tool, then reviewed against the corresponding written setup and verified demonstration video. The five desk-reset illustrations were added on 2026-08-17: `reset-march`, `reset-thoracic-rotation`, `reset-hip-flexor-stretch`, `reset-scapular-setting`, and `reset-bodyweight-squat`.
 
 ## Visual direction
 
@@ -10,7 +10,9 @@ The 17 workout illustrations in `public/exercises/` were generated as original p
 - No text, logos, watermarks, gym equipment, or decorative distractions.
 - The same neutral clothing and background treatment keeps every workout visually consistent.
 
-The source images were generated at high resolution and converted to 640×640 WebP at quality 82. The complete set is approximately 292 KB and is included in the PWA precache.
+The source images were generated at high resolution and converted to 640×640 WebP at quality 82. The complete set is approximately 364 KB and is included in the PWA precache.
+
+The reset set uses the same prompt family: a full-body adult male athlete, warm off-white seamless backdrop, soft muted-sage elliptical ground shadow, charcoal shirt and black shorts, premium editorial semi-realistic digital fitness illustration, generous square framing, no text/logos/watermarks, and anatomically clear low-impact form. Each selected source remains preserved in Codex's generated-image workspace; the project ships only the compact WebP derivative.
 
 ## Safety and maintenance
 

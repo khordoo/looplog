@@ -60,7 +60,7 @@ describe('IndexedDbStorageAdapter', () => {
     const migrated = await adapter.getSession('legacy-session')
     expect(migrated).toMatchObject({ id: 'legacy-session', updatedAt: timestamp })
     expect(await adapter.getSessionState('legacy-active')).toMatchObject({ phase: 'warmup', activeExerciseIndex: 0 })
-    expect((await adapter.getAppMeta())?.databaseVersion).toBe(3)
+    expect((await adapter.getAppMeta())?.databaseVersion).toBe(5)
     await cleanup(adapter)
   })
 

@@ -8,6 +8,7 @@ import { useStorage } from '../../app/providers/AppProvider'
 import { plan } from '../../lib/content'
 import { newId, nowIso } from '../../lib/ids'
 import { Button, Card, Status } from '../../components/ui/Status'
+import { SessionSummary } from '../sessions/SessionSummary'
 
 function readableDate(value?: string) {
   return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(`${value}T12:00:00`)) : 'when you are ready'
@@ -70,7 +71,8 @@ export function Today() {
 
   async function startOccurrence(workoutKey: 'A' | 'B' | 'C', scheduledDate: `${number}-${number}-${number}`) {
     const stamp = nowIso()
-    const session = await storage.createSession({ id: newId(), workoutKey, planVersion: plan.version || readyProfile.planVersion, scheduledDate, startedAt: stamp })
+    const input = { id: newId(), workoutKey, planVersion: plan.version || readyProfile.planVersion, scheduledDate, startedAt: stamp }
+    const session = storage.startSession ? await storage.startSession(input) : await storage.createSession(input)
     navigate(`/workout/${session.id}`)
   }
   async function start() {
@@ -88,10 +90,11 @@ export function Today() {
     await load()
   }
 
+  const outlineWorkoutKey = resume?.workoutKey ?? next?.workoutKey
   return <div className="page">
     <div className="page-heading"><div><p className="eyebrow">Your next step</p><h2>Today</h2></div><span className="pill">{profile.daysPerWeek} days · {profile.mode}</span></div>
     {error && <Status kind="error">{error}</Status>}
-    <Card className="hero-card" data-testid="today-next-workout"><p className="eyebrow">{resume ? 'In progress' : 'Next workout'}</p><h3>{resume ? `Workout ${resume.workoutKey}` : next ? `Workout ${next.workoutKey}` : 'Recovery day'}</h3><p className="muted">{resume ? 'Pick up exactly where you left off.' : next ? `Planned for ${readableDate(next.scheduledDate)} · about 30 minutes` : 'Your next training date will appear here.'}</p>{missed ? <><Status kind="warning">Missed fixed-day session: Workout {missed.workoutKey} was planned for {readableDate(missed.scheduledDate)}. Complete it late or skip it; future weekdays stay in place.</Status><div className="form-actions"><Button variant="secondary" onClick={() => void startMissedLate()} data-testid="complete-missed">Complete late</Button><Button variant="ghost" onClick={() => void skipMissed()} data-testid="skip-missed">Skip missed session</Button></div></> : <Button onClick={() => resume ? navigate(`/workout/${resume.id}`) : void start()} data-testid={resume ? 'resume-workout' : 'start-workout'}>{resume ? 'Resume workout' : next ? `Start Workout ${next.workoutKey}` : 'No workout ready'}</Button>}</Card>
+    <Card className="hero-card" data-testid="today-next-workout"><p className="eyebrow">{resume ? 'In progress' : 'Next workout'}</p><h3>{resume ? `Session ${resume.workoutKey}` : next ? `Session ${next.workoutKey}` : 'Recovery day'}</h3><p className="muted">{resume ? 'Pick up exactly where you left off.' : next ? `Planned for ${readableDate(next.scheduledDate)} · about 30 minutes` : 'Your next training date will appear here.'}</p>{outlineWorkoutKey && <SessionSummary workoutKey={outlineWorkoutKey} session={resume} compact />} {missed ? <><Status kind="warning">Missed fixed-day session: Workout {missed.workoutKey} was planned for {readableDate(missed.scheduledDate)}. Complete it late or skip it; future weekdays stay in place.</Status><div className="form-actions"><Button variant="secondary" onClick={() => void startMissedLate()} data-testid="complete-missed">Complete late</Button><Button variant="ghost" onClick={() => void skipMissed()} data-testid="skip-missed">Skip missed session</Button></div></> : <Button onClick={() => resume ? navigate(`/workout/${resume.id}`) : void start()} data-testid={resume ? 'resume-workout' : 'start-workout'}>{resume ? 'Resume Session' : next ? `Start Session ${next.workoutKey}` : 'No workout ready'}</Button>}</Card>
     <div className="two-col"><Card data-testid="today-recovery"><h3>Recovery</h3><p className="metric">{priorSummary ? 'Recover and repeat' : 'First session'}</p><p className="muted">{priorSummary ? recoveryLabel(priorSummary) : 'Start gently and use the written form guide.'}</p>{priorSummary && <p>{priorSummary.totalReps ? `${priorSummary.totalReps} total reps` : `${priorSummary.totalDurationSeconds} seconds of holds`} · {priorSummary.durationSeconds ? `${Math.round(priorSummary.durationSeconds / 60)} minutes` : 'duration not recorded'}</p>}</Card><Card><h3>Backup</h3><p>{completed === 0 ? 'After your first completed workout, export a backup.' : appMeta?.lastSuccessfulExportAt ? `Last successful backup: ${new Date(appMeta.lastSuccessfulExportAt).toLocaleDateString()}.` : 'Export your first backup to protect this history.'}</p>{backupDue && completed > 0 && <Status kind="warning" data-testid="backup-reminder">Back up now: your latest local history is not recently exported.</Status>}<Link to="/settings/backups" className="text-button">Manage backup</Link></Card></div>
     <Card data-testid="today-prior-summary"><h3>Prior completed workout</h3><p>{priorSummary ? recoveryLabel(priorSummary) : 'No prior completed workout to summarize.'}</p>{priorSummary && <ul>{priorSummary.exercises.filter((exercise) => exercise.setsCompleted > 0).slice(0, 3).map((exercise) => <li key={exercise.exerciseLogId}>{exercise.exerciseId}: {exercise.setsCompleted} sets{exercise.totalReps ? ` · ${exercise.totalReps} reps` : ''}</li>)}</ul>}</Card>
     <Card><h3>Quick links</h3><div className="link-row"><Link to="/desk-reset">Start the optional five-minute desk reset</Link><Link to="/exercises">Browse exercise guides</Link><Link to="/settings/schedule">Adjust schedule</Link></div></Card>

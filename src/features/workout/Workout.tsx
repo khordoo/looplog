@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { recommendNextTarget } from '../../domain/progression'
 import type {
-  Band, EffortRating, ExerciseLog, PerformanceRecord, SetLog, SetupAdjustment,
+  Band, EffortRating, Exercise, ExerciseLog, PerformanceRecord, PlanSlot, SetLog, SetupAdjustment,
   TargetSnapshot, WorkoutRecommendation, WorkoutSession, WorkoutSessionState,
 } from '../../domain/types'
 import { createDefaultWorkoutSessionState } from '../../domain/types'
@@ -14,6 +14,7 @@ import { Button, Card, Dialog, Status } from '../../components/ui/Status'
 import { UpdateNotice } from '../../components/feedback/Connectivity'
 import { MovementPreview } from './MovementPreview'
 import { WarmupPanel } from './WarmupPanel'
+import { BandPills, effortText, formatSetValue, PLANNED_REST_SECONDS, restSecondsFor } from '../sessions/SessionSummary'
 
 const effortLabels: Array<[EffortRating, string]> = [
   ['easy', 'Easy — 3+ clean reps remain'],
@@ -79,6 +80,10 @@ export function Workout() {
   const [logs, setLogs] = useState<ExerciseLog[]>([])
   const [sets, setSets] = useState<SetLog[]>([])
   const [bands, setBands] = useState<Band[]>([])
+  const [bandInventory, setBandInventory] = useState<Band[]>([])
+  const [exerciseCatalog, setExerciseCatalog] = useState<Exercise[]>([])
+  const [planSlots, setPlanSlots] = useState<PlanSlot[]>([])
+  const [snapshotSlots, setSnapshotSlots] = useState<PlanSlot[]>()
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<WorkoutSessionState['phase']>('warmup')
   const [reps, setReps] = useState('')
@@ -102,7 +107,7 @@ export function Workout() {
   // A finalized session is history, never an entry point to a new active run.
   useEffect(() => {
     let cancelled = false
-    void Promise.all([storage.getSession(sessionId), storage.getBands()]).then(async ([found, inventory]) => {
+    void Promise.all([storage.getSession(sessionId), storage.getBands(), storage.listExercises ? storage.listExercises({ includeArchived: true }) : Promise.resolve([] as Exercise[])]).then(async ([found, inventory, catalog]) => {
       if (!found) throw new Error('Workout not found')
       if (found.status === 'completed' || found.status === 'skipped') throw new Error('This workout is already finalized and cannot be resumed.')
       const stamp = nowIso()
@@ -113,7 +118,11 @@ export function Workout() {
       if (found.status !== 'in-progress' || !found.activeState) await storage.updateSession(active)
       if (cancelled) return
       setSession(active)
+      setPlanSlots([])
+      setSnapshotSlots(undefined)
+      setBandInventory(inventory)
       setBands(inventory.filter((band) => band.enabled).sort((a, b) => a.number - b.number))
+      setExerciseCatalog(catalog)
       setPhase(state.phase)
       setIndex(state.activeExerciseIndex)
       setReps(state.draft.reps ?? '')
@@ -132,12 +141,19 @@ export function Workout() {
     return () => { cancelled = true }
   }, [sessionId, storage])
 
-  const slots = useMemo(() => session ? slotsFor(session.workoutKey) : [], [session])
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    void (storage.resolvePlan ? storage.resolvePlan(session.workoutKey).then((resolved) => { if (!cancelled) setPlanSlots(resolved.slots) }) : Promise.resolve().then(() => { if (!cancelled) setPlanSlots(slotsFor(session.workoutKey)) }))
+    return () => { cancelled = true }
+  }, [session, storage])
+
+  const slots = snapshotSlots ?? planSlots
 
   // Resolve substitutions only when creating the session snapshot. Existing
   // logs are never rebuilt, so later preference changes cannot rewrite history.
   useEffect(() => {
-    if (!session || !slots.length) return
+    if (!session || !planSlots.length) return
     let cancelled = false
     void (async () => {
       const [existing, substitutions] = await Promise.all([
@@ -146,7 +162,7 @@ export function Workout() {
       let nextLogs = existing
       if (!nextLogs.length) {
         const bySlot = new Map(substitutions.map((item) => [item.planSlotId, item]))
-        nextLogs = await Promise.all(slots.map((slot) => {
+        nextLogs = await Promise.all(planSlots.map((slot) => {
           const substitution = slot.isAccessory ? undefined : bySlot.get(slot.id)
           const exerciseId = substitution?.selectedExerciseId ?? slot.exerciseId
           return storage.createExerciseLog({
@@ -162,20 +178,27 @@ export function Workout() {
       if (!cancelled) {
         setLogs(nextLogs.sort((a, b) => a.order - b.order))
         setSets(nextSets)
+        const byId = new Map(planSlots.map((slot) => [slot.id, slot]))
+        setSnapshotSlots(nextLogs.slice().sort((a, b) => a.order - b.order).map((log) => {
+          const source = byId.get(log.planSlotId)
+          return { ...(source ?? { id: log.planSlotId, workoutKey: session.workoutKey, category: 'core' as const, startingResistance: 'bodyweight' as const }), id: log.planSlotId, exerciseId: log.exerciseId, order: log.order, defaultSets: log.targetSnapshot.sets, restSeconds: log.targetSnapshot.restSeconds ?? source?.restSeconds ?? 60, repRange: log.targetSnapshot.repRange, durationSeconds: log.targetSnapshot.durationSeconds }
+        }))
       }
     })().catch((cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : 'Unable to create exercise logs.') })
     return () => { cancelled = true }
-  }, [session, slots, storage])
+  }, [session, planSlots, storage])
 
   const currentLog = logs[index]
   const currentSlot = slots[index]
-  const exercise = currentLog ? exerciseById(currentLog.exerciseId) : undefined
+  const exercise = currentLog ? (exerciseCatalog.find((item) => item.id === currentLog.exerciseId) ?? exerciseById(currentLog.exerciseId)) : undefined
+  const exerciseName = currentLog?.exerciseNameSnapshot ?? exercise?.name ?? currentLog?.exerciseId
   const currentSets = currentLog
     ? sets.filter((set) => set.exerciseLogId === currentLog.id).sort((a, b) => a.setNumber - b.setNumber)
     : []
   const target = currentLog?.targetSnapshot
   const expectedSets = target?.sets ?? 2
   const isTimed = Boolean(target?.durationSeconds)
+  const plannedRestSeconds = target && currentSlot ? restSecondsFor(target, currentSlot) : PLANNED_REST_SECONDS
 
   useEffect(() => {
     if (!currentLog) return
@@ -240,7 +263,14 @@ export function Workout() {
       effort, completedAt: nowIso(),
     })
     setSets((current) => current.some((item) => item.id === created.id) ? current : [...current, created])
-    setReps(''); setDuration(''); setSetupNote(''); setTimer(60); setTimerRunning(true)
+    setReps(''); setDuration(''); setSetupNote(''); setTimer(plannedRestSeconds); setTimerRunning(true)
+  }
+
+  function useLastSetup() {
+    const firstSet = previousPerformance?.sets[0]
+    if (!firstSet) return
+    setBandKeys([...firstSet.bandKeys])
+    setSetup(firstSet.setupAdjustment ?? 'standard')
   }
 
   async function applyRecommendation() {
@@ -289,10 +319,10 @@ export function Workout() {
   if (!currentSlot || !currentLog) return <div className="page">{phase === 'working' && slots.length > 0 && !error ? <div role="status">Preparing your exercise logs…</div> : <><Status kind="error">{error || 'This workout has no exercise content yet.'}</Status><Link to="/today" className="button button-primary">Back to Today</Link></>}</div>
   return <div className="page workout-page">
     <UpdateNotice activeWorkout />
-    <div className="workout-top"><div><p className="eyebrow">Workout {session.workoutKey} · {index + 1} of {slots.length}{currentSlot.isAccessory ? ' · accessory paired with C-5' : ''}</p><h2 data-testid="active-exercise">{exercise?.name ?? currentLog.exerciseId}</h2></div><button className="text-button" onClick={() => setLeaveConfirm(true)}>Pause</button></div>
+    <div className="workout-top"><div><p className="eyebrow">Workout {session.workoutKey} · {index + 1} of {slots.length}{currentSlot.isAccessory ? ' · accessory paired with C-5' : ''}</p><h2 data-testid="active-exercise">{exerciseName}</h2></div><button className="text-button" onClick={() => setLeaveConfirm(true)}>Pause</button></div>
     {!online && <Status kind="warning">Offline mode: your entries save locally. Demonstration videos need connectivity.</Status>}
     {exercise && <MovementPreview exercise={exercise} online={online} showVideo={showVideo} onShowVideo={() => setShowVideo(true)} compact />}
-    <Card className="target-card"><div><p className="eyebrow">Target</p><strong data-testid="active-target">{targetLabel(target)}</strong></div><div><p className="eyebrow">Previous completed performance</p><span data-testid="previous-result">{previousPerformance ? `${previousPerformance.sets.map((set) => set.reps ?? `${set.durationSeconds ?? 0}s`).join(' · ')} · ${previousPerformance.sets[0]?.bandKeys.length ? previousPerformance.sets[0].bandKeys.join(' + ') : 'bodyweight'}` : 'No completed result yet'}</span></div></Card>
+    <Card className="target-card"><div><p className="eyebrow">Recommended target</p><strong data-testid="active-target">{targetLabel(target)}</strong><span className="target-rest">Rest {Math.floor(plannedRestSeconds / 60)}:{String(plannedRestSeconds % 60).padStart(2, '0')} between sets</span></div><div className="previous-performance"><p className="eyebrow">Last time · set by set</p>{previousPerformance ? <div className="previous-set-list" data-testid="previous-result"><span className="sr-only">{previousPerformance.sets.map((set) => set.reps ?? `${set.durationSeconds ?? 0}s`).join(' · ')} · {previousPerformance.sets.flatMap((set) => set.bandKeys.length ? set.bandKeys : ['bodyweight']).join(' · ')}</span>{previousPerformance.sets.map((set, setIndex) => <div className="previous-set" key={`${previousPerformance?.completedAt}-${setIndex}`}><strong>Set {setIndex + 1}</strong><span>{formatSetValue(set)}</span><BandPills bandKeys={set.bandKeys} bands={bandInventory} /><span className="effort-label">{effortText[set.effort]}</span>{set.setupAdjustment && set.setupAdjustment !== 'standard' && <span className="help">{set.setupAdjustment.replace('-', ' ')}</span>}</div>)}</div> : <span data-testid="previous-result">First time</span>}{previousPerformance && <Button variant="secondary" onClick={useLastSetup} data-testid="use-last-setup">Use last setup</Button>}</div></Card>
     {recommendation && <details className="proposal"><summary><strong>Proposed target:</strong> {targetLabel(recommendation.proposedTarget)}</summary><p>{recommendation.rationale}</p><Button onClick={() => void applyRecommendation()} data-testid="confirm-recommendation">Confirm and use</Button></details>}
     <Card className="set-entry-card"><div className="set-card-heading"><h3>{currentSets.length >= expectedSets ? `Target sets saved (${expectedSets} of ${expectedSets})` : `Set ${currentSets.length + 1} of ${expectedSets}`}</h3><Button onClick={() => void completeSet()} disabled={currentSets.length >= expectedSets} data-testid="set-complete">{currentSets.length >= expectedSets ? 'Target sets saved' : 'Save set'}</Button></div><div className="two-col set-entry-grid"><label>{isTimed ? 'Duration (seconds)' : 'Repetitions'}<input inputMode="numeric" type="number" min="1" value={isTimed ? duration : reps} onChange={(event) => isTimed ? setDuration(event.target.value) : setReps(event.target.value)} data-testid={isTimed ? 'set-duration' : 'set-reps'} /></label><label>Effort<select value={effort} onChange={(event) => setEffort(event.target.value as EffortRating)} data-testid="effort-select">{effortLabels.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div><fieldset><legend>Band or bodyweight</legend><div className="band-choices">{bands.map((band) => <label key={band.key}><input type="checkbox" checked={bandKeys.includes(band.key)} onChange={() => setBandKeys((current) => current.includes(band.key) ? current.filter((item) => item !== band.key) : [...current, band.key])} /> <span className={`band-dot band-${band.displayColor}`} aria-hidden="true" />{displayBand(band)}</label>)}<span className="help">Leave all unchecked for bodyweight. Multiple bands may be selected.</span></div></fieldset><label>Setup adjustment<select value={setup} onChange={(event) => setSetup(event.target.value as SetupAdjustment)} data-testid="setup-adjustment">{adjustmentOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>{setup === 'other' && <label>Describe setup<input value={setupNote} onChange={(event) => setSetupNote(event.target.value)} placeholder="e.g. shortened grip above the knees" data-testid="setup-note" /></label>}<details><summary>Optional exercise note</summary><label>Exercise notes<textarea value={exerciseNote} onChange={(event) => setExerciseNote(event.target.value)} onBlur={() => void saveExerciseNote()} placeholder="Optional notes" data-testid="exercise-note" /></label></details></Card>
     <Card className="form-guide-card">{exercise ? <details><summary><span>Full form guide</span><small>Setup, movement, breathing & safety</small></summary><div className="form-guide-content"><p><strong>Setup:</strong> {exercise.setup.join(' ')}</p><ol>{exercise.steps.map((step) => <li key={step}>{step}</li>)}</ol><p><strong>Tempo and breathing:</strong> {exercise.breathingTempo}</p>{exercise.bandWarnings.length > 0 && <p className="help"><strong>Band safety:</strong> {exercise.bandWarnings.join(' ')}</p>}</div></details> : <p>Written guide unavailable for this exercise.</p>}</Card>

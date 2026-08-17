@@ -10,6 +10,7 @@ import {
   validateBackupData,
 } from './backup'
 import type { AppMeta, BackupData, Band, Profile, SetLog, Substitution, WorkoutSession } from '../types'
+import { materializePlanConfiguration } from '../plan-configurations'
 
 const now = '2026-08-16T12:00:00.000Z'
 const profile: Profile = {
@@ -40,7 +41,7 @@ const data: BackupData = {
 describe('backup envelope', () => {
   it('round trips a readable deterministic envelope with a checksum and preview', async () => {
     const serialized = await serializeBackup(data, { appVersion: '0.1.0', exportedAt: now })
-    expect(serialized).toContain('"schemaVersion": 1')
+    expect(serialized).toContain(`"schemaVersion": ${BACKUP_SCHEMA_VERSION}`)
     const parsed = await parseBackup(serialized)
     expect(parsed.schemaVersion).toBe(BACKUP_SCHEMA_VERSION)
     expect(parsed.sessions[0].id).toBe(session.id)
@@ -55,10 +56,37 @@ describe('backup envelope', () => {
     await expect(parseBackup({ ...envelope, sessions: [{ ...envelope.sessions[0], activeState: { ...envelope.sessions[0].activeState, unexpected: true } }] })).rejects.toThrow(/unsupported field/i)
   })
 
+  it('continues to import a schema-1 envelope after removing schema-2 collections', async () => {
+    const modern = await createBackupEnvelope(data, { appVersion: '0.1.0', exportedAt: now })
+    const legacy: Record<string, unknown> = { ...modern, schemaVersion: 1 }
+    delete legacy.planConfigurations
+    delete legacy.customExercises
+    delete legacy.checksum
+    const canonical = (value: unknown): unknown => Array.isArray(value)
+      ? value.map(canonical)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]))
+        : value
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(canonical(legacy))))
+    legacy.checksum = { algorithm: 'SHA-256', value: [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('') }
+    const parsed = await parseBackup(legacy)
+    expect(parsed.schemaVersion).toBe(1)
+    expect(parsed.planConfigurations).toBeUndefined()
+    expect(parsed.customExercises).toBeUndefined()
+  })
+
   it('accepts a linked runtime accessory log but never an accessory substitution', () => {
     const accessoryData = { ...data, exerciseLogs: [{ ...data.exerciseLogs[0], planSlotId: 'C-5-accessory' }] }
     expect(() => validateBackupData(accessoryData, { knownPlanSlotIds: ['A-1', 'C-5'] })).not.toThrow()
     expect(() => validateBackupData({ ...data, substitutions: [{ ...substitution, planSlotId: 'C-5-accessory' }] }, { knownPlanSlotIds: ['A-1', 'C-5'] })).toThrow(/accessory/i)
+  })
+
+  it('accepts logs for UUID slots defined by the same editable configuration during preview validation', () => {
+    const customSlotId = '11111111-1111-4111-8111-111111111111'
+    const configuration = materializePlanConfiguration('A', [], now)
+    configuration.slots = configuration.slots.map((slot, index) => index === 0 ? { ...slot, id: customSlotId } : slot)
+    const configured = { ...data, planConfigurations: [configuration], exerciseLogs: [{ ...data.exerciseLogs[0], planSlotId: customSlotId }] }
+    expect(() => validateBackupData(configured, { knownPlanSlotIds: ['A-1'] })).not.toThrow()
   })
 
   it('rejects malformed, future-version, checksum-invalid, duplicate, referential, and unknown-field files', async () => {

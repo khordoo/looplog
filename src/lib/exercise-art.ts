@@ -16,6 +16,11 @@ const exerciseArtIds = new Set([
   'upper-curl-band',
   'lower-calf-raise',
   'core-bird-dog',
+  'reset-march',
+  'reset-thoracic-rotation',
+  'reset-hip-flexor-stretch',
+  'reset-scapular-setting',
+  'reset-bodyweight-squat',
 ])
 
 export function exerciseArtFor(exerciseId: string): string | undefined {

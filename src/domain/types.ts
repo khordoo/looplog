@@ -16,7 +16,7 @@ export const effortRatingSchema = z.enum(['easy', 'just-right', 'max-effort', 'f
 export const movementCategorySchema = z.enum([
   'squat', 'hinge', 'lunge', 'push-horizontal', 'push-vertical',
   'pull-horizontal', 'pull-apart', 'arms', 'core', 'calves',
-  'warmup', 'cooldown', 'desk-reset',
+  'warmup', 'cooldown', 'desk-reset', 'mobility', 'postural-control',
 ])
 export const setupAdjustmentSchema = z.enum([
   'standard', 'shortened-grip', 'lengthened-grip', 'other',
@@ -68,6 +68,8 @@ export interface TargetSnapshot {
   suggestedReps?: number
   /** A concrete, confirmable setup cue; never silently picks a user's band. */
   progressionCue?: string
+  /** Planned rest after a completed set. Optional only for legacy records; readers normalize to 60 seconds. */
+  restSeconds?: number
   source: 'default' | 'recommendation' | 'manual'
 }
 
@@ -99,6 +101,10 @@ export interface Exercise extends EntityMeta {
   compatibleSubstitutionCategories: MovementCategory[]
   defaultTarget: TargetSnapshot
   media?: ExerciseMedia
+  /** Present only for local custom records; built-ins remain static assets. */
+  photoDataUrl?: string
+  isCustom?: boolean
+  archived?: boolean
 }
 
 /** Adapter-neutral option shown when replacing a plan-slot exercise. */
@@ -118,7 +124,10 @@ export interface PlanSlot {
   pairId?: string
   /** Runtime-only accessory slot linked to its primary movement pair. */
   isAccessory?: boolean
-  defaultSets: 2
+  /** Positive number of planned sets. Legacy templates used the literal 2. */
+  defaultSets: number
+  /** Planned rest after a set. Legacy records normalize to 60 seconds. */
+  restSeconds?: number
   repRange?: RepRange
   durationSeconds?: RepRange
   startingResistance: 'bodyweight' | 'band'
@@ -131,6 +140,53 @@ export interface PlanTemplate {
   warmupMinutes: 4
   cooldownMinutes: number
 }
+
+/** A user-owned, editable copy of one built-in workout template. */
+export interface PlanConfiguration extends EntityMeta {
+  /** One stable record per workout letter. */
+  id: WorkoutKey
+  workoutKey: WorkoutKey
+  /** Monotonically increasing revision used in session.planVersion. */
+  revision: number
+  sourceVersion: string
+  slots: PlanSlot[]
+  warmupMinutes: number
+  cooldownMinutes: number
+}
+
+export interface ResolvedPlan {
+  workoutKey: WorkoutKey
+  version: string
+  slots: PlanSlot[]
+  warmupMinutes: number
+  cooldownMinutes: number
+  configuration?: PlanConfiguration
+}
+
+export interface YouTubeMetadata {
+  videoId: string
+  sourceUrl: string
+  /** Host is retained so the editor can display the canonical URL form. */
+  host: 'youtube.com' | 'youtu.be'
+}
+
+/** Local-only exercise content. A record is archived instead of deleted once referenced by history. */
+export interface CustomExercise extends EntityMeta {
+  id: UUID
+  name: string
+  category: MovementCategory
+  targetKind: 'reps' | 'duration'
+  targetRange: RepRange
+  sets: number
+  setup: string[]
+  steps: string[]
+  formCues: string[]
+  photoDataUrl?: string
+  youtube?: YouTubeMetadata
+  archived: boolean
+}
+
+export type NewCustomExercise = Omit<CustomExercise, keyof EntityMeta | 'id'> & { id?: UUID }
 
 export interface Substitution extends EntityMeta {
   planSlotId: string
@@ -185,6 +241,8 @@ export interface ExerciseLog extends EntityMeta {
   planSlotId: string
   order: number
   targetSnapshot: TargetSnapshot
+  /** Immutable display name captured at session start for renamed/archived custom exercises. */
+  exerciseNameSnapshot?: string
   note?: string
 }
 
@@ -253,6 +311,9 @@ export interface BackupData {
   sessions: WorkoutSession[]
   exerciseLogs: ExerciseLog[]
   setLogs: SetLog[]
+  /** Optional for schema-1 callers; schema-2 exports always include these arrays. */
+  planConfigurations?: PlanConfiguration[]
+  customExercises?: CustomExercise[]
   appMeta?: AppMeta
 }
 
@@ -299,6 +360,7 @@ export interface NewExerciseLog {
   planSlotId: string
   order: number
   targetSnapshot: TargetSnapshot
+  exerciseNameSnapshot?: string
   id?: UUID
   note?: string
 }
@@ -336,6 +398,7 @@ export const targetSnapshotSchema = z.object({
   setupAdjustment: setupAdjustmentSchema.optional(),
   suggestedReps: z.number().int().nonnegative().optional(),
   progressionCue: z.string().min(1).optional(),
+  restSeconds: z.number().int().positive().optional(),
   source: z.enum(['default', 'recommendation', 'manual']),
 }).superRefine((target, ctx) => {
   if (!target.repRange && !target.durationSeconds) {
@@ -344,6 +407,76 @@ export const targetSnapshotSchema = z.object({
   if (target.repRange && target.durationSeconds) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A target cannot use reps and duration together.' })
   }
+})
+
+export const planSlotSchema = z.object({
+  id: z.string().min(1),
+  workoutKey: z.enum(['A', 'B', 'C']),
+  order: z.number().int().nonnegative(),
+  exerciseId: z.string().min(1),
+  category: movementCategorySchema,
+  pairId: z.string().min(1).optional(),
+  isAccessory: z.boolean().optional(),
+  defaultSets: z.number().int().positive(),
+  restSeconds: z.number().int().positive().optional(),
+  repRange: repRangeSchema.optional(),
+  durationSeconds: repRangeSchema.optional(),
+  startingResistance: z.enum(['bodyweight', 'band']),
+  compatibleSubstitutionCategories: z.array(movementCategorySchema).optional(),
+}).superRefine((slot, ctx) => {
+  if (!slot.repRange && !slot.durationSeconds) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A plan slot needs reps or duration.' })
+  if (slot.repRange && slot.durationSeconds) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A plan slot cannot use reps and duration together.' })
+  if (slot.isAccessory && !slot.pairId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pairId'], message: 'An accessory slot needs a pair.' })
+})
+
+export const planConfigurationSchema = entityMetaSchema.extend({
+  id: z.enum(['A', 'B', 'C']),
+  workoutKey: z.enum(['A', 'B', 'C']),
+  revision: z.number().int().positive(),
+  sourceVersion: z.string().min(1),
+  slots: z.array(planSlotSchema).min(1),
+  warmupMinutes: z.number().int().nonnegative(),
+  cooldownMinutes: z.number().int().nonnegative(),
+}).superRefine((configuration, ctx) => {
+  if (configuration.id !== configuration.workoutKey) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['id'], message: 'Configuration id must match workout key.' })
+  const ids = new Set<string>()
+  const orders = new Set<number>()
+  configuration.slots.forEach((slot, index) => {
+    if (ids.has(slot.id)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['slots', index, 'id'], message: 'Slot identifiers must be unique.' })
+    ids.add(slot.id)
+    if (orders.has(slot.order)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['slots', index, 'order'], message: 'Slot order values must be unique.' })
+    orders.add(slot.order)
+    if (slot.workoutKey !== configuration.workoutKey) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['slots', index, 'workoutKey'], message: 'Slot workout key does not match configuration.' })
+  })
+})
+
+const dataUrlSchema = z.string().regex(/^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/, 'Photo must be a compressed WebP data URL.').refine((value) => {
+  const comma = value.indexOf(',')
+  if (comma < 0) return false
+  // Base64 is four thirds of the byte count; this guards IndexedDB growth even
+  // when callers bypass the image-picker helper.
+  return Math.floor((value.length - comma - 1) * 3 / 4) <= 1_500_000
+}, 'Photo is larger than the 1.5 MB local limit.')
+
+export const youtubeMetadataSchema = z.object({
+  videoId: z.string().regex(/^[A-Za-z0-9_-]{11}$/),
+  sourceUrl: z.string().url(),
+  host: z.enum(['youtube.com', 'youtu.be']),
+})
+
+export const customExerciseSchema = entityMetaSchema.extend({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(160),
+  category: movementCategorySchema,
+  targetKind: z.enum(['reps', 'duration']),
+  targetRange: repRangeSchema,
+  sets: z.number().int().positive(),
+  setup: z.array(z.string().trim().min(1)).max(20),
+  steps: z.array(z.string().trim().min(1)).max(30),
+  formCues: z.array(z.string().trim().min(1)).max(3),
+  photoDataUrl: dataUrlSchema.optional(),
+  youtube: youtubeMetadataSchema.optional(),
+  archived: z.boolean(),
 })
 
 export const profileSchema = entityMetaSchema.extend({
@@ -437,6 +570,7 @@ export const exerciseLogSchema = entityMetaSchema.extend({
   planSlotId: z.string().min(1),
   order: z.number().int().nonnegative(),
   targetSnapshot: targetSnapshotSchema,
+  exerciseNameSnapshot: z.string().trim().min(1).optional(),
   note: z.string().optional(),
 })
 
@@ -478,6 +612,8 @@ export const backupDataSchema = z.object({
   sessions: z.array(sessionSchema),
   exerciseLogs: z.array(exerciseLogSchema),
   setLogs: z.array(setLogSchema),
+  planConfigurations: z.array(planConfigurationSchema).optional(),
+  customExercises: z.array(customExerciseSchema).optional(),
   appMeta: appMetaSchema.optional(),
 })
 
@@ -490,4 +626,27 @@ export const backupEnvelopeSchema = backupDataSchema.extend({
 
 export function isLocalDate(value: string): value is LocalDate {
   return localDateSchema.safeParse(value).success
+}
+
+export const DEFAULT_REST_SECONDS = 60
+
+/** Additive compatibility normalization for schema-1 targets. */
+export function normalizeTargetSnapshot(target: TargetSnapshot): TargetSnapshot {
+  return { ...target, sets: Math.max(1, Math.trunc(target.sets)), restSeconds: target.restSeconds ?? DEFAULT_REST_SECONDS }
+}
+
+/** Additive compatibility normalization for legacy/default plan slots. */
+export function normalizePlanSlot(slot: PlanSlot): PlanSlot {
+  return { ...slot, defaultSets: Math.max(1, Math.trunc(slot.defaultSets)), restSeconds: slot.restSeconds ?? DEFAULT_REST_SECONDS }
+}
+
+export function targetSnapshotFromPlanSlot(slot: PlanSlot, source: TargetSnapshot['source'] = 'default'): TargetSnapshot {
+  return normalizeTargetSnapshot({
+    sets: slot.defaultSets,
+    repRange: slot.repRange,
+    durationSeconds: slot.durationSeconds,
+    bandKeys: [],
+    restSeconds: slot.restSeconds,
+    source,
+  })
 }
