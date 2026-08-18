@@ -12,6 +12,23 @@ LoopLog includes a low-glare dark theme alongside Light and System appearance ch
 
 <p align="center"><em>Plan each session, follow visual movement guidance, and load verified YouTube demonstrations only when you choose.</em></p>
 
+### Dark mode
+
+The dark theme keeps the same workout flow easy to scan in low light: review the session rotation, check an illustrated movement setup, and open an optional YouTube demonstration when you want one.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/looplog-dark-sessions.png" width="260" alt="LoopLog dark theme session overview showing three sessions and exercise thumbnails" /></td>
+    <td align="center"><img src="docs/images/looplog-dark-exercise-illustration.png" width="260" alt="LoopLog dark theme exercise detail with an illustrated band front squat preview" /></td>
+    <td align="center"><img src="docs/images/looplog-dark-exercise-video.png" width="260" alt="LoopLog dark theme exercise detail with an optional YouTube demonstration" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Build a clear session rotation</sub></td>
+    <td align="center"><sub>Learn the setup at a glance</sub></td>
+    <td align="center"><sub>Watch a verified demonstration</sub></td>
+  </tr>
+</table>
+
 ## Requirements
 
 - Node.js 22 or newer
