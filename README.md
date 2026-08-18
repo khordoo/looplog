@@ -4,6 +4,12 @@ LoopLog is an installable, mobile-first resistance-band workout PWA. It is desig
 
 Written exercise guidance, workout logging, history, recommendations, settings, and backup validation work offline after the app has been loaded once. YouTube demonstrations are optional and require a connection.
 
+<p align="center">
+  <img src="docs/images/looplog-app-overview.png" width="1000" alt="LoopLog mobile screens showing today's workout, session planning, an illustrated exercise guide, and an optional YouTube demonstration" />
+</p>
+
+<p align="center"><em>Plan each session, follow visual movement guidance, and load verified YouTube demonstrations only when you choose.</em></p>
+
 ## Requirements
 
 - Node.js 22 or newer
