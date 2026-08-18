@@ -1,6 +1,6 @@
 # V1 exercise and demonstration media research
 
-Verification date for every link below: **2026-08-16**. This document is the content handoff for the catalog described in `PLAN.md`; it is not medical advice and it does not replace an in-person assessment. “High fit” means the linked demonstration and the written setup agree closely. “Medium fit” means the movement is clear and the source is credible, but the video’s band length, camera angle, or exact variant needs a final visual check before production. No source below uses a door anchor in the prescribed setup; links that show another variant should be cued at the timestamp/variant noted.
+Verification date for every link below: **2026-08-16**. This document is the content handoff for the catalog described in [PLAN.md](PLAN.md); it is not medical advice and it does not replace an in-person assessment. “High fit” means the linked demonstration and the written setup agree closely. “Medium fit” means the movement is clear and the source is credible, but the video’s band length, camera angle, or exact variant needs a final visual check before production. No source below uses a door anchor in the prescribed setup; links that show another variant should be cued at the timestamp/variant noted.
 
 ## Equipment convention and shared safety copy
 
@@ -127,7 +127,7 @@ The C4 wording is intentionally one catalog definition: use the seated feet-wrap
 - **Common mistakes:** Narrow tightrope stance; front heel lifting; knee collapsing inward; dropping onto rear knee; pushing off the rear toes; rushing the step.
 - **Easier/harder:** Easier: hold support, reduce depth, or perform a step-back toe tap. Harder: full range, slower eccentric, then light band or load once stable.
 - **Compatible alternatives:** `lower-split-squat`, `lower-front-squat-band` (unilateral/bilateral squat).
-- **Safety warning:** Start bodyweight as PLAN.md specifies. Use a stable support for balance; do not add the band while the user is still reaching for the floor or losing alignment.
+- **Safety warning:** Start bodyweight as [PLAN.md](PLAN.md) specifies. Use a stable support for balance; do not add the band while the user is still reaching for the floor or losing alignment.
 - **Demonstration:** [Hinge Health — Reverse Lunge, guide from physical therapists](https://www.youtube.com/watch?v=6rKA_et3dGk) (bodyweight step-back lunge, no anchor). **Confidence: high / fit high.** Clinical source and exact initial setup; a future band progression needs its own visual review.
 
 ### `upper-floor-press-band` — Band floor press

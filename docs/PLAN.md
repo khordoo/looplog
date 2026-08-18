@@ -1,4 +1,4 @@
-# Local-Only Training Tracker PWA
+# Local-Only LoopLog PWA
 
 ## Summary
 
@@ -37,9 +37,10 @@ Runtime external services are limited to:
 
 ### Primary screens
 
-- **Today:** next workout, recovery state, duration, and prior workout summary.
+- **Today:** next workout, recovery state, duration, prior workout summary, and the complete next-session outline expanded by default.
 - **Active Workout:** one exercise at a time, target, previous result, band selector, set logging, form guide, video, and rest timer.
-- **Exercises:** searchable library with written instructions, muscles, alternatives, common errors, and demonstration videos.
+- **Exercises:** A/B/C session summaries followed by a searchable library with written instructions, muscles, alternatives, common errors, and demonstration videos.
+- **Session Overview:** ordered movements, recommended targets, latest results, planned rest, and controls for editing future sessions.
 - **History:** completed workouts and exercise-level progression.
 - **Settings:** schedule, bands, exercise substitutions, backups, storage status, and reset controls.
 
@@ -104,6 +105,8 @@ Curate one exact YouTube demonstration per exercise from a reputable clinical, c
 
 Use lazy, click-to-load `youtube-nocookie.com` embeds with attribution and an “Open on YouTube” fallback. Do not scrape the web at runtime or hotlink arbitrary images. When offline, retain all written instructions and show that the video needs connectivity.
 
+Provide a consistent local 640×640 illustration for every built-in exercise, including the five desk-reset movements. Precache these assets and provide an icon fallback for custom exercises without a photo.
+
 ### Workout logging and recommendations
 
 For every set, record:
@@ -127,6 +130,28 @@ Before an exercise, display the last result and a proposed target. Use double pr
 - Require confirmation before applying every recommendation.
 
 Permit exercise swaps only within compatible movement categories. Preserve completed history under the original exercise.
+
+### Session overview and editing
+
+- Organize the program as **Session A, Session B, and Session C**. In fixed mode, show the assigned weekday as secondary information rather than replacing the session name.
+- Show every movement in the next-session outline on Today. Each row includes a thumbnail, recommended sets and reps or duration, per-side status, planned rest, and latest completed result.
+- Show `First time` when no completed result exists. When history exists, show set-level reps or duration, named band colors or bodyweight, setup adjustment, and effort. Never communicate a band by color alone.
+- Add **Your sessions** above the exercise library. Respect the profile's two-day or three-day configuration and link each card to `/sessions/:workoutKey`.
+- On wide screens, session overviews use Movement, Recommended, Last time, and Rest columns. On mobile, present those same labeled values as readable stacked content.
+- Editing supports accessible reordering, adding and removing movements, changing sets, changing rep or duration ranges, changing planned rest, and restoring built-in defaults.
+- Save or cancel a session edit as one transaction. Edits apply only to future sessions; in-progress and completed workouts retain their snapshots.
+- Use `Remove from session` for plan changes and reserve `Delete exercise` for a custom exercise record.
+- Inside an active workout, `Use last setup` may copy the previous bands and setup adjustment only after an explicit action. Saving a set starts the exercise's snapshotted rest timer, which can be paused or skipped.
+
+### Custom exercises
+
+- Allow a user to create and edit a local custom exercise with a required name, movement category, target kind, target range, and set count.
+- Support optional setup notes, movement steps, up to three concise cues, one YouTube URL, and one photo.
+- Parse normal `youtube.com` and `youtu.be` URLs and continue to use the privacy-enhanced click-to-load player.
+- Crop and resize a selected photo locally to a compressed 640×640 WebP before saving. The photo never leaves the device except when included in a user-created backup.
+- Allow custom exercises in library search and session editing.
+- Archive a custom exercise that has workout history so old sessions remain readable. An unused custom exercise may be permanently deleted after confirmation.
+- Snapshot the exercise name and target when a session starts so later edits or archival never rewrite history.
 
 ## Technical Implementation
 
@@ -154,6 +179,8 @@ The interface covers:
 - Exercise substitution reads/writes.
 - Workout session lifecycle.
 - Exercise and set log persistence.
+- User session-configuration reads/writes.
+- Custom-exercise reads/writes and archival.
 - History and recent-performance queries.
 - Full data export/import.
 
@@ -172,15 +199,19 @@ Use a versioned Dexie database with these stores:
 - `sessions`
   - UUID, workout key, plan version, scheduled date, status, start/completion time, duration, and notes.
 - `exerciseLogs`
-  - UUID, session ID, exercise ID, order, confirmed target snapshot, and note.
+  - UUID, session ID, exercise ID, exercise-name snapshot, order, confirmed target and rest snapshot, and note.
 - `setLogs`
   - UUID, exercise-log ID, set number, reps or duration, band keys, setup adjustment, effort, and completion time.
+- `planConfigurations`
+  - Stable session key, revision, ordered slots with stable IDs, exercise IDs, targets, planned rest, and timestamps.
+- `customExercises`
+  - UUID, timestamps, archived state, exercise fields, optional YouTube video ID, and optional compressed WebP data URL.
 - `appMeta`
   - Database version, last successful export time, install state, dismissed notices, and update metadata.
 
 Use UUIDs so future cloud synchronization can be added without changing identifiers. Every record includes timestamps. Dexie schema upgrades must migrate existing data without deleting workout history.
 
-Exercise definitions and program templates remain versioned static TypeScript/JSON content rather than user data.
+Built-in exercise definitions and program templates remain versioned static TypeScript/JSON content. User plan configurations and custom exercises are local user data. Built-in templates are never mutated; a user configuration is materialized from defaults when a session is first edited.
 
 ### Domain interfaces
 
@@ -198,6 +229,8 @@ Define shared types for:
 - `SetLog`
 - `EffortRating`
 - `WorkoutRecommendation`
+- `PlanConfiguration`
+- `CustomExercise`
 - `BackupEnvelope`
 
 Implement pure functions for:
@@ -207,7 +240,9 @@ Implement pure functions for:
 - Resolving fixed schedules and missed days.
 - Recommending the next target.
 - Validating substitutions.
+- Resolving built-in templates, legacy substitutions, and user session configurations.
 - Summarizing completed workouts.
+- Parsing custom-exercise media and enforcing archive/history rules.
 - Exporting, validating, merging, and replacing backup data.
 
 ### Backup and restore
@@ -220,10 +255,12 @@ Export a single human-readable JSON file with:
 - Profile and schedule.
 - Band inventory.
 - Substitutions.
+- User plan configurations.
+- Custom exercises, including compressed local photos.
 - Sessions, exercise logs, and set logs.
 - A SHA-256 content checksum.
 
-Use a filename such as `training-tracker-backup-2026-08-16.json` and invoke the iOS share sheet so it can be saved to Files or iCloud Drive.
+Use a filename such as `looplog-backup-2026-08-16.json` and invoke the iOS share sheet so it can be saved to Files or iCloud Drive.
 
 Backup behavior:
 
@@ -287,9 +324,10 @@ Provide:
 - Unit-test flexible and fixed schedules, two/three-day changes, missed workouts, Toronto timezone boundaries, and daylight-saving transitions.
 - Unit-test every progression outcome.
 - Validate movement-pattern coverage in all program configurations.
+- Unit-test session resolution, stable plan-slot IDs, rest snapshots, restore-default behavior, YouTube parsing, and archived custom-exercise references.
 - Test IndexedDB creation, migrations, session resume, and cascade deletion.
-- Test backup round trips, merge conflicts, replacement rollback, checksum failure, malformed data, and future schema versions.
-- Component-test onboarding, band selection, last-performance display, effort controls, substitutions, offline messaging, and backup reminders.
+- Test plan/custom-exercise CRUD, backup round trips, merge conflicts, replacement rollback, checksum failure, malformed data, and future schema versions.
+- Component-test onboarding, band selection, session summaries and editing, custom-exercise creation, last-performance display, effort controls, substitutions, offline messaging, and backup reminders.
 - Playwright-test:
   - Installation metadata and offline startup.
   - Complete onboarding.
@@ -297,6 +335,8 @@ Provide:
   - Verify history and the next recommendation.
   - Switch schedule modes and frequency.
   - Swap and restore an exercise.
+  - Edit Session A, reload, start it, and confirm the saved target and rest snapshot.
+  - Create a custom exercise, add it to a session, and preserve it through export and restore.
   - Export, reset, restore, and verify identical history.
   - Complete a full workout with the network disabled.
 - Run type checking, linting, unit tests, production build, accessibility scanning, and mobile-browser tests in CI.

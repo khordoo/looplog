@@ -1,6 +1,6 @@
-# Training Tracker UX, Accessibility, and Verification Matrix
+# LoopLog UX, Accessibility, and Verification Matrix
 
-This is the implementation-ready verification contract for the local-only Training Tracker PWA described in `PLAN.md`. It defines the route and state vocabulary, observable test hooks, user-flow coverage, accessibility expectations, and evidence required before release. It intentionally does not prescribe a visual design beyond the product requirements; tests should assert user-visible behavior and semantics rather than implementation details.
+This is the implementation-ready verification contract for the local-only LoopLog PWA described in [PLAN.md](PLAN.md). It defines the route and state vocabulary, observable test hooks, user-flow coverage, accessibility expectations, and evidence required before release. It intentionally does not prescribe a visual design beyond the product requirements; tests should assert user-visible behavior and semantics rather than implementation details.
 
 ## 1. Test conventions and testability hooks
 

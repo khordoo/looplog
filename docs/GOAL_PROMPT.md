@@ -3,9 +3,9 @@
 Paste the following prompt into a fresh Codex session opened at `~/Projects/looplog`:
 
 ```text
-/goal Build the complete local-only Training Tracker PWA described in PLAN.md. Continue until the application is deploy-ready and all required verification passes.
+/goal Build the complete local-only LoopLog PWA described in docs/PLAN.md. Continue until the application is deploy-ready and all required verification passes.
 
-Act as the primary orchestrator, technical lead, and final reviewer. Read PLAN.md completely before doing any implementation.
+Act as the primary orchestrator, technical lead, and final reviewer. Read docs/PLAN.md completely before doing any implementation.
 
 Sub-agent requirements:
 - Explicitly delegate substantial, bounded work to sub-agents.
@@ -17,7 +17,7 @@ Sub-agent requirements:
 - You may make integration and corrective edits as the orchestrator, but delegate most implementation work.
 
 Execution approach:
-1. Inspect PLAN.md and the empty repository.
+1. Inspect docs/PLAN.md and the empty repository.
 2. Create a concise implementation sequence based on dependencies.
 3. Use an initial delegation wave for independent architecture, exercise-content/media research, and testing/UX analysis if useful.
 4. Synthesize those results before assigning implementation.
@@ -29,7 +29,7 @@ Execution approach:
 7. Perform final end-to-end review and verification.
 
 Hard requirements:
-- Follow PLAN.md as the source of truth.
+- Follow docs/PLAN.md as the source of truth.
 - Store all user data locally in IndexedDB through an adapter interface.
 - No authentication, Supabase, backend API, database server, analytics, or tracking.
 - Preserve an easy future path to a `SupabaseStorageAdapter`; UI components must never access Dexie or IndexedDB directly.
@@ -37,9 +37,9 @@ Hard requirements:
 - Implement validated JSON export/import with merge and replace behavior.
 - Curate and verify credible exercise demonstration videos matching long loop bands with no door anchor.
 - Build mobile-first for iPhone while retaining accessible desktop behavior.
-- Preserve PLAN.md.
+- Preserve docs/PLAN.md.
 - Do not commit, push, publish, or deploy unless I explicitly request it.
-- Do not ask routine implementation questions when PLAN.md provides enough direction; make conservative, documented assumptions.
+- Do not ask routine implementation questions when docs/PLAN.md provides enough direction; make conservative, documented assumptions.
 
 Verification required before completion:
 - Dependency installation succeeds.
@@ -50,7 +50,7 @@ Verification required before completion:
 - Review the final repository for direct IndexedDB access outside the storage adapter, unfinished placeholders, fake data paths, missing exercise guides, and obvious accessibility regressions.
 - Update README with local development, testing, Vercel deployment, iPhone installation, backup/restore, and future Supabase-adapter guidance.
 
-The goal is complete only when the implementation matches PLAN.md, verification passes, and the repository is ready for a later Vercel deployment. At completion, report:
+The goal is complete only when the implementation matches docs/PLAN.md, verification passes, and the repository is ready for a later Vercel deployment. At completion, report:
 - what was built;
 - verification commands and results;
 - any remaining limitations;

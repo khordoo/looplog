@@ -1,6 +1,6 @@
-# Training Tracker PWA Architecture
+# LoopLog PWA Architecture
 
-This document turns `PLAN.md` into an implementation contract. It describes the
+This document turns [PLAN.md](PLAN.md) into an implementation contract. It describes the
 boundaries between product content, pure training logic, persistence, and the
 React/PWA shell. The initial implementation is local-only, but all user-data
 types and identifiers are deliberately suitable for a later
@@ -358,7 +358,7 @@ an in-memory adapter implementing the same interface.
 
 ## 5. Dexie schema and migration strategy
 
-Use one named Dexie database, for example `training-tracker`, and a monotonic
+Use one consistently named Dexie database and a monotonic
 schema version. Keep the database version separate from `BackupEnvelope`'s
 portable schema version.
 
@@ -486,7 +486,7 @@ confirmation; the domain function only receives an already-confirmed mode.
 
 Exercise definitions and A/B/C templates are checked-in, versioned static
 TypeScript (or JSON validated at build time). They include every field in
-`PLAN.md`: setup, steps, breathing/tempo, muscles, 3–5 cues, errors,
+[PLAN.md](PLAN.md): setup, steps, breathing/tempo, muscles, 3–5 cues, errors,
 regressions/progressions, band warnings, compatible category, and exactly one
 curated YouTube demonstration where available. Content tests should fail if a
 plan slot points at a missing exercise, a media entry lacks attribution, or a
@@ -587,7 +587,7 @@ of the local build.
 | Color/effort accessibility | Pair color with band number/name and text labels; test keyboard and screen-reader names. |
 | Future cloud sync conflict | UUIDs, `updatedAt`, normalized records, and adapter-only persistence contract from v1. |
 
-## 11. Acceptance criteria mapped to `PLAN.md`
+## 11. Acceptance criteria mapped to [PLAN.md](PLAN.md)
 
 ### Product and content
 
