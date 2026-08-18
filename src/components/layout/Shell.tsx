@@ -7,7 +7,7 @@ import { NavIcon } from '../ui/NavIcon'
 export function Shell() {
   const location = useLocation()
   useEffect(() => {
-    const titles: Array<[string, string]> = [['/today', 'Today'], ['/desk-reset', 'Desk reset'], ['/workout/', 'Active workout'], ['/sessions/', 'Session overview'], ['/exercises/', 'Exercise guide'], ['/exercises', 'Exercises'], ['/history/', 'Session details'], ['/history', 'History'], ['/settings/schedule', 'Schedule settings'], ['/settings/bands', 'Band settings'], ['/settings/substitutions', 'Substitution settings'], ['/settings/backups', 'Backup settings'], ['/settings/storage', 'Storage settings'], ['/settings/reset', 'Reset settings'], ['/settings', 'Settings'], ['/onboarding', 'Onboarding']]
+    const titles: Array<[string, string]> = [['/today', 'Today'], ['/desk-reset', 'Desk reset'], ['/workout/', 'Active workout'], ['/sessions/', 'Session overview'], ['/exercises/', 'Exercise guide'], ['/exercises', 'Exercises'], ['/history/', 'Session details'], ['/history', 'History'], ['/settings/appearance', 'Appearance settings'], ['/settings/schedule', 'Schedule settings'], ['/settings/bands', 'Band settings'], ['/settings/substitutions', 'Substitution settings'], ['/settings/backups', 'Backup settings'], ['/settings/storage', 'Storage settings'], ['/settings/reset', 'Reset settings'], ['/settings', 'Settings'], ['/onboarding', 'Onboarding']]
     const title = titles.find(([path]) => location.pathname === path || location.pathname.startsWith(path))?.[1] ?? 'LoopLog'
     document.title = `${title} · LoopLog`
   }, [location.pathname])

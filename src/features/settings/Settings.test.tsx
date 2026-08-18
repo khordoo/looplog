@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AppProvider } from '../../app/providers/AppProvider'
 import { BandsSettings, BackupSettings, Settings, SubstitutionSettings } from './Settings'
+import { AppearanceSettings } from './AppearanceSettings'
 import type { Profile } from '../../domain/types'
 import type { StorageAdapter } from '../../storage/adapter'
 
@@ -18,6 +19,36 @@ function renderPage(element: React.ReactNode, storage: StorageAdapter) {
 }
 
 describe('Settings component flows', () => {
+  afterEach(() => {
+    window.localStorage.clear()
+    delete document.documentElement.dataset.theme
+  })
+
+  it('offers an accessible appearance choice that persists across a remount', async () => {
+    const user = userEvent.setup(); const storage = adapter(); renderPage(<AppearanceSettings />, storage)
+    const system = await screen.findByRole('radio', { name: /system/i })
+    expect(system).toBeChecked()
+    system.focus()
+    await user.keyboard('{ArrowDown}')
+    expect(screen.getByRole('radio', { name: /light/i })).toBeChecked()
+    await user.click(screen.getByTestId('appearance-dark'))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(window.localStorage.getItem('looplog-appearance')).toBe('dark')
+    cleanup(); renderPage(<AppearanceSettings />, storage)
+    expect(await screen.findByRole('radio', { name: /dark/i })).toBeChecked()
+    expect(screen.getByTestId('appearance-status')).toHaveTextContent(/dark colors/i)
+  })
+
+  it('updates System appearance from a live operating-system preference event', async () => {
+    const listeners: Array<(event: MediaQueryListEvent) => void> = []
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: vi.fn(() => ({ matches: false, addEventListener: (_name: string, listener: (event: MediaQueryListEvent) => void) => listeners.push(listener), removeEventListener: vi.fn() })) })
+    const storage = adapter(); const rendered = renderPage(<AppearanceSettings />, storage)
+    expect(await screen.findByTestId('appearance-status')).toHaveTextContent(/light colors/i)
+    rendered.rerender(<MemoryRouter><AppProvider adapter={storage}><div /></AppProvider></MemoryRouter>)
+    await act(async () => { listeners.forEach((listener) => listener({ matches: true } as MediaQueryListEvent)) })
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
   it('covers band availability selection and save', async () => {
     const user = userEvent.setup(); const storage = adapter(); renderPage(<BandsSettings />, storage)
     const available = await screen.findAllByRole('checkbox', { name: /available/i })

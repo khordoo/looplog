@@ -13,7 +13,7 @@ import { exercises, plan } from '../../lib/content'
 import { Button, Card, Dialog, Status } from '../../components/ui/Status'
 
 const weekdays: Array<[Weekday, string]> = [[0, 'Sun'], [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat']]
-const settingLinks = [['/settings/schedule', 'Schedule', 'Choose two or three days and flexible or fixed assignments.'], ['/settings/bands', 'Bands', 'Manage the Serious Steel set and labels.'], ['/settings/substitutions', 'Substitutions', 'Swap within compatible movement categories.'], ['/settings/backups', 'Backups', 'Export, restore, or reset local data.'], ['/settings/storage', 'Storage', 'Review browser persistence and update status.'], ['/settings/reset', 'Reset local data', 'Clear this browser after exporting a backup.']] as const
+const settingLinks = [['/settings/appearance', 'Appearance', 'Choose System, Light, or Dark theme.'], ['/settings/schedule', 'Schedule', 'Choose two or three days and flexible or fixed assignments.'], ['/settings/bands', 'Bands', 'Manage the Serious Steel set and labels.'], ['/settings/substitutions', 'Substitutions', 'Swap within compatible movement categories.'], ['/settings/backups', 'Backups', 'Export, restore, or reset local data.'], ['/settings/storage', 'Storage', 'Review browser persistence and update status.'], ['/settings/reset', 'Reset local data', 'Clear this browser after exporting a backup.']] as const
 
 export function Settings() {
   const storage = useStorage(); const [meta, setMeta] = useState<AppMeta>(); const [sessions, setSessions] = useState<WorkoutSession[]>([])

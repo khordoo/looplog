@@ -4,6 +4,8 @@ LoopLog is an installable, mobile-first resistance-band workout PWA. It is desig
 
 Written exercise guidance, workout logging, history, recommendations, settings, and backup validation work offline after the app has been loaded once. YouTube demonstrations are optional and require a connection.
 
+LoopLog includes a low-glare dark theme alongside Light and System appearance choices. Open **Settings → Appearance** to choose a preference; System follows the device setting live and your choice stays local to this browser.
+
 <p align="center">
   <img src="docs/images/looplog-app-overview.png" width="1000" alt="LoopLog mobile screens showing today's workout, session planning, an illustrated exercise guide, and an optional YouTube demonstration" />
 </p>

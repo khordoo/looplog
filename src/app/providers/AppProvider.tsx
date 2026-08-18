@@ -5,6 +5,7 @@ import type { StorageAdapter } from '../../storage/adapter'
 import { IndexedDbStorageAdapter } from '../../storage/indexeddb-adapter'
 import { CURRENT_DATABASE_VERSION, isOnline, isStandalone } from '../../lib/browser'
 import { activateWaitingServiceWorker } from '../../lib/pwa'
+import { applyAppearance, readAppearancePreference } from '../../lib/theme'
 
 interface RuntimeContextValue {
   storage: StorageAdapter
@@ -32,6 +33,22 @@ export function AppProvider({ children, adapter }: PropsWithChildren<{ adapter?:
   const storage = useMemo(() => adapter ?? new IndexedDbStorageAdapter(), [adapter])
   const [online, setOnline] = useState(isOnline)
   const [updateReady, setUpdateReady] = useState(false)
+
+  useEffect(() => {
+    const preference = readAppearancePreference()
+    applyAppearance(preference)
+    const media = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : undefined
+    const onSystemChange = (event: MediaQueryListEvent) => { if (readAppearancePreference() === 'system') applyAppearance('system', event.matches) }
+    const onStorageChange = (event: StorageEvent) => { if (event.key === null || event.key === 'looplog-appearance') applyAppearance(readAppearancePreference(), media?.matches) }
+    if (media?.addEventListener) media.addEventListener('change', onSystemChange)
+    else media?.addListener?.(onSystemChange)
+    window.addEventListener('storage', onStorageChange)
+    return () => {
+      if (media?.removeEventListener) media.removeEventListener('change', onSystemChange)
+      else media?.removeListener?.(onSystemChange)
+      window.removeEventListener('storage', onStorageChange)
+    }
+  }, [])
 
   useEffect(() => {
     const onOnline = () => setOnline(true)
