@@ -6,15 +6,9 @@ Written exercise guidance, workout logging, history, recommendations, settings, 
 
 LoopLog includes a low-glare dark theme alongside Light and System appearance choices. Open **Settings → Appearance** to choose a preference; System follows the device setting live and your choice stays local to this browser.
 
-<p align="center">
-  <img src="docs/images/looplog-app-overview.png" width="1000" alt="LoopLog mobile screens showing today's workout, session planning, an illustrated exercise guide, and an optional YouTube demonstration" />
-</p>
+## Preview
 
-<p align="center"><em>Plan each session, follow visual movement guidance, and load verified YouTube demonstrations only when you choose.</em></p>
-
-### Dark mode
-
-The dark theme keeps the same workout flow easy to scan in low light: review the session rotation, check an illustrated movement setup, and open an optional YouTube demonstration when you want one.
+Shown in dark mode, LoopLog keeps the workout flow easy to scan in low light: review the session rotation, check an illustrated movement setup, and open an optional YouTube demonstration when you want one.
 
 <table>
   <tr>
@@ -28,6 +22,8 @@ The dark theme keeps the same workout flow easy to scan in low light: review the
     <td align="center"><sub>Watch a verified demonstration</sub></td>
   </tr>
 </table>
+
+<p align="center"><em>Plan each session, follow visual movement guidance, and load verified YouTube demonstrations only when you choose.</em></p>
 
 ## Requirements
 
