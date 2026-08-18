@@ -1,6 +1,6 @@
 # Implementation Goal Prompt
 
-Paste the following prompt into a fresh Codex session opened at `/Users/mahmoodkhordoo/Projects/training-tracker`:
+Paste the following prompt into a fresh Codex session opened at `~/Projects/looplog`:
 
 ```text
 /goal Build the complete local-only Training Tracker PWA described in PLAN.md. Continue until the application is deploy-ready and all required verification passes.

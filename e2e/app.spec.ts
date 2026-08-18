@@ -57,7 +57,7 @@ async function uploadBackupFromMemory(page: Page, backup: Buffer) {
   }, backup.toString('base64'))
 }
 
-test.describe('Training Tracker P0 smoke flows', () => {
+test.describe('LoopLog P0 smoke flows', () => {
   test('starts onboarding and exposes safety and install guidance', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/onboarding$/)
@@ -103,7 +103,7 @@ test.describe('Training Tracker P0 smoke flows', () => {
     await context.setOffline(true)
     await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('main')).toBeVisible()
-    await expect(page).toHaveTitle(/Training Tracker/)
+    await expect(page).toHaveTitle(/LoopLog/)
     expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
   })
 
@@ -129,7 +129,7 @@ test.describe('Training Tracker P0 smoke flows', () => {
     expect(worker.ok()).toBe(true)
     expect(await worker.text()).toContain('SKIP_WAITING')
     await page.goto('/')
-    await expect(page).toHaveTitle(/Training Tracker/)
+    await expect(page).toHaveTitle(/LoopLog/)
   })
 
   test('onboarding draft survives refresh and validates timezone and fixed weekdays', async ({ page }) => {

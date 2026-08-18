@@ -1,6 +1,6 @@
-# Training Tracker
+# LoopLog
 
-Training Tracker is an installable, mobile-first resistance-band workout PWA. It is designed for one person using a 41-inch Serious Steel loop-band set. All profile, schedule, workout, and backup metadata stays in the browser's IndexedDB database; the app has no account, backend, analytics, or tracking.
+LoopLog is an installable, mobile-first resistance-band workout PWA. It is designed for one person using a 41-inch Serious Steel loop-band set. All profile, schedule, workout, and backup metadata stays in the browser's IndexedDB database; the app has no account, backend, analytics, or tracking.
 
 Written exercise guidance, workout logging, history, recommendations, settings, and backup validation work offline after the app has been loaded once. YouTube demonstrations are optional and require a connection.
 
@@ -83,7 +83,7 @@ Use Safari; other iOS browsers may not expose the same installation flow.
 2. Tap **Share**.
 3. Choose **Add to Home Screen** (scroll the action list if necessary).
 4. Keep the displayed name and tap **Add**.
-5. Launch Training Tracker from the new Home Screen icon.
+5. Launch LoopLog from the new Home Screen icon.
 6. Complete onboarding and export a first backup after completing a workout.
 
 Open the app online once after an update so the new application shell can be cached. Do not change the production domain after users begin logging workouts; IndexedDB belongs to the exact web origin.
@@ -115,6 +115,6 @@ Keep synchronization-specific operations in a separate optional interface so loc
 
 ## Safety and limitations
 
-Band resistance changes with stretch, setup, and grip and is not equivalent to a fixed weight. Inspect bands before use, keep them away from the face and neck, use controlled motion on a stable surface, and stop for sharp, radiating, or worsening pain. Training Tracker provides general exercise guidance, not medical diagnosis, rehabilitation, or clinician-supervised programming.
+Band resistance changes with stretch, setup, and grip and is not equivalent to a fixed weight. Inspect bands before use, keep them away from the face and neck, use controlled motion on a stable surface, and stop for sharp, radiating, or worsening pain. LoopLog provides general exercise guidance, not medical diagnosis, rehabilitation, or clinician-supervised programming.
 
 V1 does not provide cross-device synchronization, automatic cloud backup, notifications, social features, calorie tracking, live form analysis, or AI-generated workouts.

@@ -10,8 +10,8 @@ export default defineConfig({
       injectRegister: null,
       includeAssets: ['favicon.svg', 'icons/*.png', 'apple-touch-icon.png', 'exercises/*.webp'],
       manifest: {
-        name: 'Training Tracker',
-        short_name: 'Training Tracker',
+        name: 'LoopLog',
+        short_name: 'LoopLog',
         description: 'A private, local-first resistance-band training tracker.',
         theme_color: '#0f172a',
         background_color: '#f8fafc',

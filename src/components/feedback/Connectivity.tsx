@@ -3,7 +3,7 @@ import { useOnline, useUpdate } from '../../app/providers/AppProvider'
 
 export function Connectivity() {
   const online = useOnline()
-  return <Status kind={online ? 'success' : 'warning'} testId="offline-status">{online ? 'Online — local data is ready' : 'Offline — workouts and written guides still work'}</Status>
+  return <span className={`connectivity-pill ${online ? 'is-online' : 'is-offline'}`} role="status" data-testid="offline-status"><span className="connectivity-dot" aria-hidden="true" />{online ? 'Online' : 'Offline — workouts still work'}</span>
 }
 
 export function UpdateNotice({ activeWorkout = false }: { activeWorkout?: boolean }) {

@@ -14,7 +14,7 @@ export async function shareJson(filename: string, value: unknown): Promise<'shar
   const text = JSON.stringify(value, null, 2)
   const file = typeof File !== 'undefined' ? new File([text], filename, { type: 'application/json' }) : undefined
   if (file && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-    await navigator.share({ title: 'Training Tracker backup', files: [file] })
+    await navigator.share({ title: 'LoopLog backup', files: [file] })
     return 'shared'
   }
   downloadJson(filename, value)

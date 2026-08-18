@@ -107,7 +107,7 @@ export function SessionSummary({ workoutKey, session, compact = false, showImage
   }, [session, storage, workoutKey])
   if (loading) return <div className="session-summary-loading" role="status">Loading session outline…</div>
   if (error) return <p className="help" role="alert">{error}</p>
-  return <div className={`session-summary ${compact ? 'session-summary-compact' : ''}`} data-testid={`session-summary-${workoutKey}`}>
+  return <div className={['session-summary', compact && 'session-summary-compact', !showImages && 'session-summary-no-art'].filter(Boolean).join(' ')} data-testid={`session-summary-${workoutKey}`}>
     {!compact && <div className="session-summary-header" aria-hidden="true"><span>Movement</span><span>Recommended</span><span>Last time</span><span>Rest</span></div>}
     {items.map((item) => {
       const exercise = item.exercise ?? exerciseById(item.exerciseId)
